@@ -35,7 +35,7 @@ final class Preferences {
     }
 
     var transitionDuration: TimeInterval {
-        get { number("transitionDuration", default: 0.22) }
+        get { number("transitionDuration", default: 0.28) }
         set { defaults.set(newValue, forKey: "transitionDuration") }
     }
 
@@ -59,12 +59,6 @@ final class Preferences {
     var excludedApps: Set<String> {
         get { Set(defaults.stringArray(forKey: "excludedApps") ?? ["com.apple.systempreferences", "com.apple.calculator"]) }
         set { defaults.set(newValue.sorted(), forKey: "excludedApps") }
-    }
-
-    /// Whether Swivel has already asked macOS for Screen Recording, so it doesn't ask on every launch.
-    var askedForScreenCapture: Bool {
-        get { bool("askedForScreenCapture", default: false) }
-        set { defaults.set(newValue, forKey: "askedForScreenCapture") }
     }
 
     /// Whether Swivel has set itself up to open at login yet (it does on first launch).

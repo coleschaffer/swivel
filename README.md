@@ -17,29 +17,34 @@ your head to read the edges.
 
 **Smooth transitions.** macOS only lets one app move another app's windows by asking that app to do it,
 and most apps (Electron and Chrome especially) redraw slowly while being resized. So Swivel snapshots the
-screen, rearranges the real windows behind an overlay, animates the snapshot with Core Animation at the
-display's refresh rate, then dissolves to reveal the real windows in place. This needs Screen Recording
-permission. Snapshots only exist in memory for the length of one transition. Without the permission,
-windows snap into place.
+screen, rearranges the real windows behind an overlay, and animates the snapshot with Core Animation at the
+display's refresh rate. Once the real windows have redrawn in their new places, Swivel takes a second
+snapshot and fades into it while the windows land, so the overlay ends up identical to the screen and
+handing back to the real windows is invisible. This needs Screen Recording permission. Snapshots only
+exist in memory for the length of one transition. Without the permission, windows snap into place.
 
 A glow marks the focused window, and side windows can be dimmed (menu → **Dim Side Windows**).
 
 ## Install
 
 ```bash
+Tools/make-signing-cert.sh   # once
 ./build.sh --install
 ```
 
-This builds the app, copies it to /Applications, and opens it. On first launch, Swivel adds itself as a
-login item (toggle it in the menu).
+The first script creates "Swivel Local Signing", a self-signed certificate in your login keychain. Every
+build is signed with it, so macOS keeps Swivel's permissions across updates. The second builds the app,
+copies it to /Applications, and opens it. On first launch, Swivel adds itself as a login item (toggle it
+in the menu).
 
 Permissions, in System Settings → Privacy & Security:
 
 - **Accessibility** (required): to move windows.
 - **Screen & System Audio Recording** (optional): for smooth transitions.
 
-The build is ad-hoc signed, so macOS forgets both permissions after a rebuild. Switch Swivel off and on
-again in each list.
+Without the certificate, builds are ad-hoc signed and macOS forgets both permissions after every rebuild.
+Toggling Swivel off and on isn't enough then: remove it from each list and add it again, or run
+`tccutil reset Accessibility local.swivel.Swivel; tccutil reset ScreenCapture local.swivel.Swivel`.
 
 ## Shortcuts
 

@@ -60,11 +60,19 @@ extension AXUIElement {
         if let value = AXValueCreate(.cgSize, &size) { set(kAXSizeAttribute, value) }
     }
 
-    func setFrame(_ frame: CGRect) {
-        // Size first so the move isn't clamped by the old size, then again in case the move changed what fits.
-        setSize(frame.size)
-        setPosition(frame.origin)
-        setSize(frame.size)
+    /// Moves and resizes in the order that keeps the window inside its old or new spot the whole time:
+    /// a growing window moves first, a shrinking one shrinks first. The last call fixes up anything the
+    /// system adjusted to keep the window on screen.
+    func setFrame(_ frame: CGRect, growing: Bool) {
+        if growing {
+            setPosition(frame.origin)
+            setSize(frame.size)
+            setPosition(frame.origin)
+        } else {
+            setSize(frame.size)
+            setPosition(frame.origin)
+            setSize(frame.size)
+        }
     }
 }
 
@@ -93,6 +101,8 @@ extension CGRect {
     func flipped(within screen: CGRect) -> CGRect {
         CGRect(x: minX - screen.minX, y: screen.maxY - maxY, width: width, height: height)
     }
+
+    var center: CGPoint { CGPoint(x: midX, y: midY) }
 
     func interpolated(to other: CGRect, _ t: CGFloat) -> CGRect {
         CGRect(x: (minX + (other.minX - minX) * t).rounded(), y: (minY + (other.minY - minY) * t).rounded(),

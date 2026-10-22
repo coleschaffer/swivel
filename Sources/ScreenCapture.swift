@@ -23,12 +23,15 @@ final class ScreenCapture {
         guard force || filter == nil || filterDisplay != screen.displayID else { return }
         let displayID = screen.displayID
         loading = Task { [weak self] in
-            if let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true),
+            // All windows, not just visible ones: Swivel's overlay is hidden between transitions but must
+            // still be left out of every picture, or a picture taken mid-transition would show the overlay.
+            if let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false),
                let display = content.displays.first(where: { $0.displayID == displayID }) {
-                // Leave out Swivel's own glow and overlay.
-                let swivel = content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }
-                self?.filter = SCContentFilter(display: display, excludingApplications: swivel, exceptingWindows: [])
+                let pid = ProcessInfo.processInfo.processIdentifier
+                let own = content.windows.filter { $0.owningApplication?.processID == pid }
+                self?.filter = SCContentFilter(display: display, excludingWindows: own)
                 self?.filterDisplay = displayID
+                Log.write("capture: ready, leaving out \(own.count) Swivel windows")
             } else {
                 Log.write("capture: couldn't look up the display")
             }

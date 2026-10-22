@@ -24,9 +24,16 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp Info.plist "$APP/Contents/Info.plist"
 cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 xcrun swiftc -O -module-name Swivel -target "$(uname -m)-apple-macos14.0" Sources/*.swift -o "$APP/Contents/MacOS/Swivel"
-# Ad-hoc signature. macOS ties Accessibility and Screen Recording to it, so after a rebuild switch
-# Swivel off and on again in System Settings → Privacy & Security.
-codesign --force --sign - "$APP"
+# macOS ties Accessibility and Screen Recording permissions to the signature. Signing every build with
+# the same certificate (Tools/make-signing-cert.sh creates it) keeps them across updates; without it,
+# fall back to an ad-hoc signature, which needs re-approving after each build.
+IDENTITY="Swivel Local Signing"
+if security find-identity -p codesigning 2>/dev/null | grep -q "$IDENTITY"; then
+  codesign --force --sign "$IDENTITY" "$APP"
+else
+  echo "No \"$IDENTITY\" certificate (run Tools/make-signing-cert.sh); signing ad-hoc."
+  codesign --force --sign - "$APP"
+fi
 echo "Built $APP"
 
 if [[ " $* " == *" --install "* ]]; then

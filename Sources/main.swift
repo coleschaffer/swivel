@@ -35,10 +35,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func begin() {
         manager.start()
         menu?.refreshIcon()
-        if prefs.smoothTransitions, !ScreenCapture.isAllowed, !prefs.askedForScreenCapture {
-            prefs.askedForScreenCapture = true
-            CGRequestScreenCaptureAccess()
-        }
+        // macOS only shows this prompt when it hasn't been answered, e.g. after an update resets it.
+        if prefs.smoothTransitions, !ScreenCapture.isAllowed { CGRequestScreenCaptureAccess() }
         Log.write("running; screen recording \(ScreenCapture.isAllowed ? "allowed" : "not allowed"), login item \(LoginItem.isEnabled ? "on" : "off")")
     }
 
@@ -106,27 +104,30 @@ func renderTest(into folder: String) -> Int32 {
                                                   2: (CGColor(red: 0.2, green: 0.7, blue: 0.4, alpha: 1), "LEFT"),
                                                   3: (CGColor(red: 0.95, green: 0.55, blue: 0.2, alpha: 1), "R1"),
                                                   4: (CGColor(red: 0.6, green: 0.3, blue: 0.85, alpha: 1), "R2")]
-    // A stand-in for the screen picture: each window gets its color, a dark title bar, and a white
-    // block at its top-left corner, so a flipped or misplaced picture is obvious.
-    let picture = drawImage(width: Int(area.width), height: Int(area.height)) { context in
-        context.setFillColor(CGColor(gray: 0.3, alpha: 1))
-        context.fill(CGRect(x: 0, y: 0, width: area.width, height: area.height))
-        for (id, frame) in frames {
-            let r = CGRect(x: frame.minX - area.minX, y: area.height - (frame.maxY - area.minY), width: frame.width, height: frame.height)
-            context.setFillColor(colors[id]!.0)
-            context.fill(r)
-            context.setFillColor(CGColor(gray: 0.1, alpha: 1))
-            context.fill(CGRect(x: r.minX, y: r.maxY - 40, width: r.width, height: 40))
-            context.setFillColor(CGColor(gray: 1, alpha: 1))
-            context.fill(CGRect(x: r.minX + 20, y: r.maxY - 160, width: 220, height: 100))
+    // A stand-in for a screen picture: each window gets its color, a dark title bar, and a white block
+    // in one top corner, so a flipped or misplaced picture is obvious.
+    func picture(of frames: [WindowID: CGRect], markerOnRight: Bool) -> CGImage {
+        drawImage(width: Int(area.width), height: Int(area.height)) { context in
+            context.setFillColor(CGColor(gray: 0.3, alpha: 1))
+            context.fill(CGRect(x: 0, y: 0, width: area.width, height: area.height))
+            for (id, frame) in frames {
+                let r = CGRect(x: frame.minX - area.minX, y: area.height - (frame.maxY - area.minY), width: frame.width, height: frame.height)
+                context.setFillColor(colors[id]!.0)
+                context.fill(r)
+                context.setFillColor(CGColor(gray: 0.1, alpha: 1))
+                context.fill(CGRect(x: r.minX, y: r.maxY - 40, width: r.width, height: 40))
+                context.setFillColor(CGColor(gray: 1, alpha: 1))
+                context.fill(CGRect(x: markerOnRight ? r.maxX - 240 : r.minX + 20, y: r.maxY - 160, width: 220, height: 100))
+            }
         }
     }
+    let before = picture(of: frames, markerOnRight: false)
     var swapped = row
     swapped.focus(4, style: .swap)
     let after = swapped.frames(in: area, settings: LayoutSettings(centerFraction: 0.35, gap: 12))
     let flights = [Flight(id: 4, from: frames[4]!, to: after[4]!, fromCenter: false, toCenter: true),
                    Flight(id: 1, from: frames[1]!, to: after[1]!, fromCenter: true, toCenter: false)]
-    let scene = TransitionScene(flights: flights, picture: picture, pictureArea: area, screenFrame: screen,
+    let scene = TransitionScene(flights: flights, picture: before, pictureArea: area, screenFrame: screen,
                                 wallpaper: nil, dim: 0.15, includeBackdrop: false)
     // Same layer setup as on screen: an unflipped host holding the real windows' picture and the scene.
     let host = CALayer()
@@ -134,22 +135,32 @@ func renderTest(into folder: String) -> Int32 {
     host.backgroundColor = CGColor(gray: 0.3, alpha: 1)
     let still = CALayer()
     still.frame = area.flipped(within: screen)
-    still.contents = picture
+    still.contents = before
     host.addSublayer(still)
     scene.root.frame = host.bounds
     host.addSublayer(scene.root)
-    for t in [0.0, 0.5, 1.0] {
-        scene.place(at: t, animated: false)
+
+    func write(_ name: String) -> Bool {
         let image = drawImage(width: Int(screen.width / 4), height: Int(screen.height / 4)) { context in
             context.scaleBy(x: 0.25, y: 0.25)
             host.render(in: context)
         }
-        let url = URL(fileURLWithPath: folder).appendingPathComponent("transition-\(Int(t * 100)).png")
-        guard let destination = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else { return 1 }
+        let url = URL(fileURLWithPath: folder).appendingPathComponent("transition-\(name).png")
+        guard let destination = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else { return false }
         CGImageDestinationAddImage(destination, image, nil)
         CGImageDestinationFinalize(destination)
         print("wrote \(url.path)")
+        return true
     }
+    for t in [0.0, 0.5, 1.0] {
+        scene.place(at: t)
+        guard write("\(Int(t * 100))") else { return 1 }
+    }
+    // Landing: the pictures switch to the after-move picture (markers on the right). They should line up
+    // exactly with where the real windows now are, shown underneath in the after layout.
+    still.contents = picture(of: after, markerOnRight: true)
+    scene.land(on: picture(of: after, markerOnRight: true), fade: 0.1)
+    guard write("landed") else { return 1 }
     return 0
 }
 

@@ -17,7 +17,7 @@ struct TiledWindow {
         let app = AXUIElementCreateApplication(pid)
         let enhanced = app.bool("AXEnhancedUserInterface") == true
         if enhanced { app.set("AXEnhancedUserInterface", kCFBooleanFalse) }
-        element.setFrame(target)
+        element.setFrame(target, growing: target.width > frame.width + 1 || target.height > frame.height + 1)
         if enhanced { app.set("AXEnhancedUserInterface", kCFBooleanTrue) }
     }
 }
@@ -350,15 +350,24 @@ final class WindowManager: NSObject {
             let scene = TransitionScene(flights: flights, picture: image, pictureArea: area, screenFrame: screen.axFrame,
                                         wallpaper: Wallpaper.image(for: screen), dim: self.prefs.dimLevel)
             let moveStarted = Date()
+            var moved = 0.0
+            let capture = self.capture
             self.overlay.play(scene, on: screen, duration: self.prefs.transitionDuration, moveWindows: { [weak self] done in
                 self?.mover.move(moves) { [weak self] results in
                     self?.record(results)
-                    Log.write(String(format: "transition: %d windows, picture %.0fms%@, windows moved in %.0fms",
-                                     flights.count, waited, early ? " (taken on press)" : "",
-                                     Date().timeIntervalSince(moveStarted) * 1000))
+                    moved = Date().timeIntervalSince(moveStarted) * 1000
                     done()
                 }
-            }, beforeReveal: beforeReveal)
+            }, pictureLanding: { deliver in
+                let asked = Date()
+                Task {
+                    let picture = await capture.capture(area, on: screen)
+                    Log.write(String(format: "transition: %d windows, picture %.0fms%@, moved in %.0fms, landing picture %@ in %.0fms",
+                                     flights.count, waited, early ? " (taken on press)" : "", moved,
+                                     picture == nil ? "failed" : "taken", Date().timeIntervalSince(asked) * 1000))
+                    deliver(picture)
+                }
+            }, beforeFinish: beforeReveal)
         }
     }
 
@@ -371,10 +380,7 @@ final class WindowManager: NSObject {
             highlight.hide()
             return
         }
-        let firstTime = !highlight.hasShown
         highlight.show(around: frame, below: center, on: screen, glow: prefs.glow, dim: prefs.dimLevel, gap: prefs.gap)
-        // Swivel now has a window on screen; rebuild the capture filter so pictures leave it out.
-        if firstTime { capture.prepare(for: screen, force: true) }
     }
 
     /// When a side window is pressed, take the picture right away: by the time the button comes up

@@ -84,7 +84,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
                 if prefs.smoothTransitions && !ScreenCapture.isAllowed { CGRequestScreenCaptureAccess() }
             })
         }
-        menu.addItem(submenu("Transition Speed", [("Snappy", 0.15), ("Quick", 0.22), ("Smooth", 0.32)],
+        menu.addItem(submenu("Transition Speed", [("Snappy", 0.18), ("Smooth", 0.28), ("Relaxed", 0.38)],
                              current: prefs.transitionDuration) { [unowned self] in prefs.transitionDuration = $0 })
         menu.addItem(ActionItem("Glow Around the Focused Window", checked: prefs.glow) { [unowned self] in
             prefs.glow.toggle()
