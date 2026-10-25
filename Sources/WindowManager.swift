@@ -69,7 +69,10 @@ final class WindowManager: NSObject {
     private var stayPut: WindowID?
     /// Side windows you've resized, which Swivel leaves as they are until you move them.
     private var pinned = Set<WindowID>()
-    private var inMissionControl = false
+    /// Whether Mission Control (or App Exposé, or Show Desktop) is up, as the Dock reports it.
+    private var missionControl = false
+    private var missionControlChanged = Date.distantPast
+    private var dockObserver: (pid: pid_t, observer: AXObserver)?
     /// Set when Swivel focuses a window itself, so the stale focus reported mid-switch is ignored.
     private var expectedFocus: (id: WindowID, until: Date)?
     /// Where the latest layout put each window.
@@ -124,6 +127,7 @@ final class WindowManager: NSObject {
             let left = event.type == .leftMouseUp
             MainActor.assumeIsolated { self?.mouseUp(left: left) }
         }) { monitors.append(up) }
+        watchDock()
         if let screen = Self.screen {
             capture.prepare(for: screen)
             _ = Wallpaper.image(for: screen)  // load it now rather than during the first transition
@@ -145,6 +149,11 @@ final class WindowManager: NSObject {
     }
 
     func accessibilityNotification(_ name: String) {
+        Log.trace("ax: \(name)")
+        if name.hasPrefix("AXExpose") {
+            setMissionControl(name != "AXExposeExit")
+            return
+        }
         let focusOnly = name == kAXFocusedWindowChangedNotification || name == kAXMainWindowChangedNotification
         scheduleUpdate(after: focusOnly ? 0 : 0.03, rescan: !focusOnly)
     }
@@ -255,23 +264,23 @@ final class WindowManager: NSObject {
             highlight.hide()
             return
         }
-        // Stay out of Mission Control's way entirely: moving windows or drawing over it hides the windows you
-        // came to drag between desktops. What you did there (and what focus it left) is sorted out once it closes.
-        if let screen = Self.screen, Self.missionControlIsOpen(on: screen.axFrame) {
-            if !inMissionControl { Log.write("mission control: open, holding still") }
-            inMissionControl = true
-            highlight.hide()
-            overlay.cancel()
-            press = nil
-            endedDrag = nil
-            stayPut = nil
-            needsScan = true
-            scheduleUpdate(after: 0.25)
+        // Hold still while Mission Control is up (see setMissionControl).
+        if missionControl {
+            // In case the Dock's "closed" never comes: once its Mission Control overlay is gone, it's over.
+            if Date().timeIntervalSince(missionControlChanged) > 2, let screen = Self.screen,
+               !Self.missionControlIsOpen(on: screen.axFrame) {
+                setMissionControl(false)
+            } else {
+                highlight.hide()
+                scheduleUpdate(after: 1)
+            }
             return
         }
-        if inMissionControl {
-            inMissionControl = false
-            Log.write("mission control: closed")
+        // For a moment after it closes, windows are still flying back to where they were.
+        let sinceMissionControl = Date().timeIntervalSince(missionControlChanged)
+        if sinceMissionControl < 0.4 {
+            scheduleUpdate(after: 0.4 - sinceMissionControl)
+            return
         }
         // Never move a window while a mouse button is down: it may be mid-click or mid-drag.
         if NSEvent.pressedMouseButtons != 0 {
@@ -407,6 +416,7 @@ final class WindowManager: NSObject {
         let showHighlight: () -> Void = { [weak self] in
             self?.showHighlight(center: lit, frame: litFrame)
         }
+        Log.trace("apply: \(snapshot.windows.count) windows, focused \(snapshot.focused.map(String.init) ?? "none"), center \(row.center.map(String.init) ?? "none"), \(moves.count) moves")
         guard !moves.isEmpty else {
             showHighlight()
             return
@@ -582,8 +592,45 @@ final class WindowManager: NSObject {
         return result
     }
 
-    /// Whether Mission Control (or App Exposé, or Launchpad) is showing. There's no public notification for it,
-    /// but while it's up the Dock covers the screen with a window of its own, above normal windows.
+    /// The Dock says when Mission Control, App Exposé and Show Desktop come and go (the same accessibility
+    /// notifications other window managers listen to). Watched again whenever the Dock restarts.
+    private func watchDock() {
+        guard let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first?.processIdentifier,
+              dockObserver?.pid != dock else { return }
+        if let old = dockObserver {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(old.observer), .commonModes)
+        }
+        var created: AXObserver?
+        guard AXObserverCreate(dock, axCallback, &created) == .success, let observer = created else { return }
+        let app = AXUIElementCreateApplication(dock)
+        let refcon = Unmanaged.passUnretained(self).toOpaque()
+        for name in ["AXExposeShowAllWindows", "AXExposeShowFrontWindows", "AXExposeShowDesktop", "AXExposeExit"] {
+            _ = AXObserverAddNotification(observer, app, name as CFString, refcon)
+        }
+        CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .commonModes)
+        dockObserver = (dock, observer)
+    }
+
+    /// Mission Control came or went. While it's up Swivel stays out of its way entirely: moving windows or drawing
+    /// over it hides the windows you came to drag between desktops. What you did there is sorted out once it closes.
+    private func setMissionControl(_ open: Bool) {
+        guard open != missionControl else { return }
+        missionControl = open
+        missionControlChanged = Date()
+        Log.write(open ? "mission control: open, holding still" : "mission control: closed")
+        if open {
+            highlight.hide()
+            overlay.cancel()
+            press = nil
+            endedDrag = nil
+            stayPut = nil
+        } else {
+            scheduleUpdate(after: 0.4, rescan: true)
+        }
+    }
+
+    /// Whether the Dock's Mission Control overlay, a window of its own covering the screen above normal windows,
+    /// is showing. It can linger after Mission Control closes, so it only backs up the Dock's notifications.
     private static func missionControlIsOpen(on screenFrame: CGRect) -> Bool {
         guard let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first?.processIdentifier,
               let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] else { return false }
@@ -646,9 +693,14 @@ final class WindowManager: NSObject {
         }
     }
 
-    @objc private func appActivated() { scheduleUpdate() }
+    @objc private func appActivated() {
+        Log.trace("app activated: \(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?")")
+        scheduleUpdate()
+    }
 
     @objc private func workspaceChanged(_ note: Notification) {
+        Log.trace("workspace: \(note.name.rawValue)")
+        if note.name == NSWorkspace.didLaunchApplicationNotification { watchDock() }
         if note.name == NSWorkspace.didTerminateApplicationNotification,
            let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
            let observer = observers.removeValue(forKey: app.processIdentifier) {
@@ -664,7 +716,10 @@ final class WindowManager: NSObject {
 
     private func poll() {
         guard prefs.enabled, let screen = Self.screen else { return }
-        if Set(onScreenWindows(in: screen.axFrame).keys) != lastSeen { scheduleUpdate() }
+        if Set(onScreenWindows(in: screen.axFrame).keys) != lastSeen {
+            Log.trace("poll: the windows on screen changed")
+            scheduleUpdate()
+        }
     }
 }
 

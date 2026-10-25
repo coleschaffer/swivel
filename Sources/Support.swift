@@ -17,6 +17,13 @@ enum Log {
         }
     }
 
+    /// Step-by-step detail for chasing a problem; off unless `defaults write local.swivel.Swivel trace -bool YES`.
+    static let tracing = UserDefaults.standard.bool(forKey: "trace")
+
+    static func trace(_ message: @autoclosure () -> String) {
+        if tracing { write(message()) }
+    }
+
     /// Starts over once the log passes half a megabyte.
     static func trim() {
         let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int ?? 0

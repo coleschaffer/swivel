@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import ScreenCaptureKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -164,6 +165,34 @@ func renderTest(into folder: String) -> Int32 {
     return 0
 }
 
+/// `Swivel --snapshot <file.png>` saves a picture of the widest screen as it looks right now, Mission Control
+/// included. Launched with `open -n -g /Applications/Swivel.app --args --snapshot <file.png>`, it runs with
+/// Swivel's own Screen Recording permission, so it works from a terminal that has none.
+@MainActor
+func snapshot(to path: String) async -> Int32 {
+    guard let screen = WindowManager.screen,
+          let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true),
+          let display = content.displays.first(where: { $0.displayID == screen.displayID }) else {
+        print("No screen to picture.")
+        return 1
+    }
+    let config = SCStreamConfiguration()
+    config.width = display.width
+    config.height = display.height
+    config.showsCursor = true
+    do {
+        let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(display: display, excludingWindows: []),
+                                                               configuration: config)
+        guard let destination = CGImageDestinationCreateWithURL(URL(fileURLWithPath: path) as CFURL, "public.png" as CFString, 1, nil)
+        else { return 1 }
+        CGImageDestinationAddImage(destination, image, nil)
+        return CGImageDestinationFinalize(destination) ? 0 : 1
+    } catch {
+        print("Couldn't take the picture: \(error.localizedDescription)")
+        return 1
+    }
+}
+
 private func drawImage(width: Int, height: Int, _ draw: (CGContext) -> Void) -> CGImage {
     let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
@@ -180,6 +209,12 @@ MainActor.assumeIsolated {
     if let i = arguments.firstIndex(of: "--render-test"), i + 1 < arguments.count {
         _ = NSApplication.shared
         exit(renderTest(into: arguments[i + 1]))
+    }
+    if let i = arguments.firstIndex(of: "--snapshot"), i + 1 < arguments.count {
+        _ = NSApplication.shared
+        let path = arguments[i + 1]
+        Task { @MainActor in exit(await snapshot(to: path)) }
+        RunLoop.main.run()
     }
     let app = NSApplication.shared
     let delegate = AppDelegate()
