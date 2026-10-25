@@ -135,6 +135,24 @@ do {
     check(frames[4]!.width == frames[2]!.width, "both sides get the same width")
 }
 
+// A zoomed or full-screen window fills the screen; nothing Swivel lays out does, even at the widest center.
+do {
+    check(area.fills(area), "a window over the whole area fills it")
+    check(CGRect(x: 0, y: 0, width: 5120, height: 1440).fills(area), "a full-screen window fills it")
+    check(!CGRect(x: 0, y: 25, width: 2560, height: 1415).fills(area), "half the screen doesn't")
+    for count in 1...7 {
+        let ids = (1...WindowID(count)).map { $0 }
+        let row = Row(center: ids[0], left: Array(ids.dropFirst().prefix((count - 1) / 2)),
+                      right: Array(ids.dropFirst(1 + (count - 1) / 2)))
+        for gap: CGFloat in [0, 12] {
+            let widest = LayoutSettings(centerFraction: 0.8, gap: gap, minColumnWidth: 480)
+            for (id, frame) in row.frames(in: area, settings: widest) {
+                check(!frame.fills(area), "\(count) windows, gap \(gap): \(id) looks zoomed \(frame)")
+            }
+        }
+    }
+}
+
 if failures == 0 {
     print("All layout tests passed")
 } else {

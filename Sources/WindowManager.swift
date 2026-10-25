@@ -60,6 +60,15 @@ final class WindowManager: NSObject {
     private var pollTimer: Timer?
     private var monitors: [Any] = []
     private var lastMouseUp = Date.distantPast
+    /// The left-button press in progress.
+    private var press: Press?
+    /// A drag that has ended and hasn't been looked at yet.
+    private var endedDrag: Press?
+    /// A side window that has focus but stays on its side, because you dragged in it (a tab, some text)
+    /// rather than clicked it. A plain click brings it over after all; focusing another window ends it.
+    private var stayPut: WindowID?
+    /// Side windows you've resized, which Swivel leaves as they are until you move them.
+    private var pinned = Set<WindowID>()
     /// Set when Swivel focuses a window itself, so the stale focus reported mid-switch is ignored.
     private var expectedFocus: (id: WindowID, until: Date)?
     /// Where the latest layout put each window.
@@ -107,8 +116,12 @@ final class WindowManager: NSObject {
         if let down = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown, handler: { [weak self] _ in
             MainActor.assumeIsolated { self?.mouseDown() }
         }) { monitors.append(down) }
-        if let up = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp, .rightMouseUp, .otherMouseUp], handler: { [weak self] _ in
-            MainActor.assumeIsolated { self?.lastMouseUp = Date() }
+        if let drag = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDragged, handler: { [weak self] _ in
+            MainActor.assumeIsolated { self?.trackDrag() }
+        }) { monitors.append(drag) }
+        if let up = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp, .rightMouseUp, .otherMouseUp], handler: { [weak self] event in
+            let left = event.type == .leftMouseUp
+            MainActor.assumeIsolated { self?.mouseUp(left: left) }
         }) { monitors.append(up) }
         if let screen = Self.screen {
             capture.prepare(for: screen)
@@ -142,6 +155,8 @@ final class WindowManager: NSObject {
         overlay.cancel()
         row = Row()
         applied = [:]
+        stayPut = nil
+        pinned = []
         if enabled { scheduleUpdate(rescan: true) } else { highlight.hide() }
     }
 
@@ -149,15 +164,24 @@ final class WindowManager: NSObject {
     func retile() {
         row = Row()
         applied = [:]
+        stayPut = nil
+        pinned = []
         scheduleUpdate(rescan: true)
     }
 
     func relayout() { scheduleUpdate() }
 
-    func adjustCenterWidth(by delta: CGFloat) {
-        prefs.centerFraction += delta
+    /// The center's share of the width on the screen being tiled. Each screen size keeps its own.
+    var centerFraction: CGFloat { prefs.centerFraction(on: Self.screen?.frame.size) }
+
+    func setCenterWidth(_ fraction: CGFloat) {
+        prefs.setCenterFraction(fraction, on: Self.screen?.frame.size)
         relayout()
     }
+
+    func adjustCenterWidth(by delta: CGFloat) { setCenterWidth(centerFraction + delta) }
+
+    private var layoutSettings: LayoutSettings { prefs.layout(on: Self.screen?.frame.size) }
 
     func toggleFloating(_ id: WindowID) {
         if floating.remove(id) == nil { floating.insert(id) }
@@ -174,6 +198,7 @@ final class WindowManager: NSObject {
     /// Brings the next window on the right (+1) or left (-1) into the center and focuses it.
     func step(_ direction: Int) {
         guard isRunning, prefs.enabled, AXIsProcessTrusted(), let snapshot = reconcile() else { return }
+        stayPut = nil
         let before = row.center
         row.rotate(by: direction)
         guard let id = row.center, let window = snapshot.windows[id] else { return }
@@ -192,7 +217,7 @@ final class WindowManager: NSObject {
     /// What Swivel would do right now, without moving anything.
     func preview() -> (area: CGRect, slots: [(slot: String, window: TiledWindow, target: CGRect)])? {
         guard let snapshot = reconcile() else { return nil }
-        let targets = row.frames(in: snapshot.area, settings: prefs.layout)
+        let targets = row.frames(in: snapshot.area, settings: layoutSettings)
         var order: [(String, WindowID)] = row.left.enumerated().reversed().map { ("left \($0.offset + 1)", $0.element) }
         if let center = row.center { order.append(("CENTER", center)) }
         order += row.right.enumerated().map { ("right \($0.offset + 1)", $0.element) }
@@ -209,6 +234,17 @@ final class WindowManager: NSObject {
         let windows: [WindowID: TiledWindow]
         let area: CGRect
         let focused: WindowID?
+        /// Windows you've zoomed or made full screen. They keep their place in the row but aren't moved.
+        let zoomed: Set<WindowID>
+    }
+
+    /// A left-button press: where it started, the window under it, where every window was, and whether
+    /// it has turned into a drag.
+    private struct Press {
+        let location: CGPoint
+        let window: WindowID?
+        let frames: [WindowID: CGRect]
+        var dragged = false
     }
 
     private func update() {
@@ -220,6 +256,7 @@ final class WindowManager: NSObject {
         }
         // Never move a window while a mouse button is down: it may be mid-click or mid-drag.
         if NSEvent.pressedMouseButtons != 0 {
+            trackDrag()
             scheduleUpdate(after: 0.016)
             return
         }
@@ -233,12 +270,44 @@ final class WindowManager: NSObject {
                 return
             }
         }
+        // A drag that just ended, even when its mouse-up hasn't come through yet.
+        var drag = endedDrag
+        if let current = press, current.dragged {
+            drag = current
+            press = nil
+        }
+        endedDrag = nil
         let centerBefore = row.center
         guard let snapshot = reconcile() else {
             highlight.hide()
             return
         }
+        if let drag { sortOut(drag, snapshot, centerChanged: row.center != centerBefore) }
         apply(snapshot, previousCenter: centerBefore, centered: row.center != centerBefore ? snapshot.focused : nil, smooth: smooth)
+    }
+
+    /// Works out what you just did with the mouse. A side window you resized keeps its new size; resizing
+    /// the center window sets the center width instead; a window you moved goes back to its place.
+    private func sortOut(_ drag: Press, _ snapshot: Snapshot, centerChanged: Bool) {
+        for (id, window) in snapshot.windows where row.contains(id) && !snapshot.zoomed.contains(id) {
+            guard let before = drag.frames[id], !window.frame.isClose(to: before, tolerance: 8) else { continue }
+            // Back where Swivel put it (perhaps a transition finishing): nothing you did. "Where Swivel put it" is
+            // what the window actually became, for apps that can't take their slot's exact size.
+            let placed = layout[id].map { slot in applied[id].flatMap { $0.target == slot ? $0.result : nil } ?? slot }
+            if let placed, window.frame.isClose(to: placed, tolerance: 8) {
+                pinned.remove(id)
+                continue
+            }
+            let resized = abs(window.frame.width - before.width) > 8 || abs(window.frame.height - before.height) > 8
+            if !resized {
+                pinned.remove(id)
+            } else if id != row.center {
+                pinned.insert(id)
+            } else if !centerChanged {
+                let fraction = (window.frame.width / snapshot.area.width * 100).rounded() / 100
+                prefs.setCenterFraction(fraction, on: Self.screen?.frame.size)
+            }
+        }
     }
 
     /// Re-reads the screen and folds what changed into the row: closed windows leave, new ones join,
@@ -273,6 +342,8 @@ final class WindowManager: NSObject {
 
         let gone = Set(row.all).subtracting(windows.keys)
         if !gone.isEmpty { row.remove(gone, successor: focused) }
+        // Only windows already in the row count as zoomed: one that opens full size still gets tiled.
+        let zoomed = Set(windows.values.filter { row.contains($0.id) && $0.frame.fills(area) }.map(\.id))
         if row.isEmpty {
             row = Row(arranging: windows.values.map { (id: $0.id, midX: $0.frame.midX) },
                       center: focused, screenMidX: area.midX)
@@ -283,25 +354,39 @@ final class WindowManager: NSObject {
             for window in newcomers { row.insertAtEdge(window.id) }
             if let focused, !row.contains(focused) { row.insertAtCenter(focused) }
         }
-        if let focused { row.focus(focused, style: prefs.style) }
-        return Snapshot(windows: windows, area: area, focused: focused)
+        if let focused, focused != stayPut {
+            stayPut = nil
+            // A window you've resized stays where it is, even with focus.
+            if !pinned.contains(focused) { row.focus(focused, style: prefs.style) }
+        }
+        return Snapshot(windows: windows, area: area, focused: focused, zoomed: zoomed)
     }
 
     private func apply(_ snapshot: Snapshot, previousCenter: WindowID?, centered: WindowID?, smooth: Bool) {
-        let targets = row.frames(in: snapshot.area, settings: prefs.layout)
+        // Only side windows stay pinned: one that ends up in the center (the old center closed, say) takes its slot.
+        if let center = row.center { pinned.remove(center) }
+        let targets = row.frames(in: snapshot.area, settings: layoutSettings)
         layout = targets
         var moves: [Move] = []
         for (id, target) in targets {
-            guard let window = snapshot.windows[id], !window.frame.isClose(to: target) else { continue }
+            guard let window = snapshot.windows[id], !snapshot.zoomed.contains(id), !pinned.contains(id),
+                  !window.frame.isClose(to: target) else { continue }
             if let last = applied[id], last.target == target, window.frame.isClose(to: last.result) { continue }
             moves.append(Move(window: window, from: window.frame, to: target))
         }
-        if prefs.pointerFollowsFocus, let id = centered, let window = snapshot.windows[id], let target = targets[id] {
+        if prefs.pointerFollowsFocus, let id = centered, !snapshot.zoomed.contains(id),
+           let window = snapshot.windows[id], let target = targets[id] {
             movePointer(from: window.frame, to: target)
         }
         let center = row.center
+        // The glow marks the focused window: usually the center one, but a side window that has focus where
+        // it is (you dragged in it, or resized it) keeps the glow there.
+        let lit = stayPut ?? snapshot.focused.flatMap { pinned.contains($0) ? $0 : nil } ?? center
+        let litFrame = lit.flatMap { id in
+            snapshot.zoomed.contains(id) ? nil : pinned.contains(id) ? snapshot.windows[id]?.frame : targets[id]
+        }
         let showHighlight: () -> Void = { [weak self] in
-            self?.showHighlight(center: center, frame: center.flatMap { targets[$0] })
+            self?.showHighlight(center: lit, frame: litFrame)
         }
         guard !moves.isEmpty else {
             showHighlight()
@@ -383,15 +468,61 @@ final class WindowManager: NSObject {
         highlight.show(around: frame, below: center, on: screen, glow: prefs.glow, dim: prefs.dimLevel, gap: prefs.gap)
     }
 
-    /// When a side window is pressed, take the picture right away: by the time the button comes up
-    /// and the window moves to the center, it's ready.
     private func mouseDown() {
-        guard isRunning, prefs.enabled, smoothTransitionsAvailable, let screen = Self.screen, let area = lastArea,
-              let location = CGEvent(source: nil)?.location,
-              let pressed = layout.first(where: { $0.value.contains(location) })?.key, pressed != row.center else { return }
+        guard isRunning, prefs.enabled, let screen = Self.screen, let location = CGEvent(source: nil)?.location else { return }
         let frames = onScreenWindows(in: screen.axFrame).mapValues { $0.frame }
+        let pressed = window(at: location)
+        press = Press(location: location, window: pressed, frames: frames)
+        // When a side window is pressed, take the picture right away: by the time the button comes up
+        // and the window moves to the center, it's ready.
+        guard smoothTransitionsAvailable, let area = lastArea, let pressed, row.contains(pressed),
+              pressed != row.center, !pinned.contains(pressed) else { return }
         let capture = self.capture
         earlyPicture = (Task { await capture.capture(area, on: screen) }, area, frames, Date())
+    }
+
+    /// Notices when the press turns into a drag. A side window you drag in (a tab, some text, a file)
+    /// stays where it is instead of coming to the center.
+    private func trackDrag() {
+        guard let current = press, !current.dragged, let location = CGEvent(source: nil)?.location,
+              hypot(location.x - current.location.x, location.y - current.location.y) > 5 else { return }
+        press?.dragged = true
+        earlyPicture = nil
+        if let id = current.window, row.contains(id), id != row.center { stayPut = id }
+    }
+
+    private func mouseUp(left: Bool) {
+        lastMouseUp = Date()
+        guard left, let finished = press else { return }
+        press = nil
+        if finished.dragged {
+            // Whatever you just moved or resized gets sorted out now, not whenever something next happens.
+            // Now rather than after a pause, so it joins any update the drag set off instead of interrupting its transition.
+            endedDrag = finished
+            scheduleUpdate()
+        } else if let id = stayPut, finished.window == id {
+            // A plain click on a window that stayed put brings it to the center after all.
+            stayPut = nil
+            scheduleUpdate()
+        }
+    }
+
+    /// The frontmost of other apps' windows under `point`, counting the strip just outside each window's
+    /// edge, where you grab it to resize it.
+    private func window(at point: CGPoint) -> WindowID? {
+        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+                as? [[String: Any]] else { return nil }
+        let ownPID = ProcessInfo.processInfo.processIdentifier
+        for info in list {
+            guard info[kCGWindowLayer as String] as? Int == 0,
+                  let pid = info[kCGWindowOwnerPID as String] as? pid_t, pid != ownPID,
+                  let bounds = info[kCGWindowBounds as String] as? NSDictionary,
+                  let frame = CGRect(dictionaryRepresentation: bounds as CFDictionary),
+                  frame.insetBy(dx: -5, dy: -5).contains(point)
+            else { continue }
+            return info[kCGWindowNumber as String] as? WindowID
+        }
+        return nil
     }
 
     /// Keeps the pointer over the window it was on when that window slides to the center.

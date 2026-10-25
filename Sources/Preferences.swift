@@ -17,11 +17,22 @@ final class Preferences {
         set { defaults.set(newValue.rawValue, forKey: "style") }
     }
 
-    /// Share of the screen width the center window gets.
-    var centerFraction: CGFloat {
-        get { CGFloat(number("centerFraction", default: 0.35)) }
-        set { defaults.set(Double(min(0.8, max(0.2, newValue))), forKey: "centerFraction") }
+    /// Share of the screen width the center window gets. Each screen size keeps its own, since a laptop screen
+    /// wants a wider center than an ultrawide; a screen that hasn't had one set uses the shared one.
+    func centerFraction(on screen: CGSize?) -> CGFloat {
+        let saved = screen.flatMap { defaults.dictionary(forKey: "centerFractions")?[Self.key($0)] as? Double }
+        return CGFloat(saved ?? number("centerFraction", default: 0.35))
     }
+
+    func setCenterFraction(_ value: CGFloat, on screen: CGSize?) {
+        let clamped = Double(min(0.8, max(0.2, value)))
+        guard let screen else { return defaults.set(clamped, forKey: "centerFraction") }
+        var saved = defaults.dictionary(forKey: "centerFractions") ?? [:]
+        saved[Self.key(screen)] = clamped
+        defaults.set(saved, forKey: "centerFractions")
+    }
+
+    private static func key(_ screen: CGSize) -> String { "\(Int(screen.width))x\(Int(screen.height))" }
 
     var gap: CGFloat {
         get { CGFloat(number("gapSize", default: 12)) }
@@ -67,7 +78,7 @@ final class Preferences {
         set { defaults.set(newValue, forKey: "loginItemConfigured") }
     }
 
-    var layout: LayoutSettings {
-        LayoutSettings(centerFraction: centerFraction, gap: gap)
+    func layout(on screen: CGSize?) -> LayoutSettings {
+        LayoutSettings(centerFraction: centerFraction(on: screen), gap: gap)
     }
 }

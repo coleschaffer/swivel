@@ -95,10 +95,12 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             prefs.dimLevel = $0
             manager.relayout()
         })
-        let widths = [30, 35, 40, 45, 50, 60].map { ("\($0)%", CGFloat($0) / 100) }
-        menu.addItem(submenu("Center Width", widths, current: prefs.centerFraction) { [unowned self] in
-            prefs.centerFraction = $0
-            manager.relayout()
+        // Dragging the center window's edge can set any width; list it so the current one is ticked.
+        let current = manager.centerFraction
+        let percents = Set([30, 35, 40, 45, 50, 60, Int((current * 100).rounded())]).sorted()
+        let widths = percents.map { ("\($0)%", CGFloat($0) / 100) }
+        menu.addItem(submenu("Center Width", widths, current: current) { [unowned self] in
+            manager.setCenterWidth($0)
         })
         menu.addItem(submenu("Gaps", [("None", 0), ("Small", 6), ("Medium", 12), ("Large", 20)], current: prefs.gap) { [unowned self] in
             prefs.gap = $0

@@ -125,6 +125,14 @@ struct Row: Equatable {
     }
 }
 
+extension CGRect {
+    /// Covers nearly all of `area`, the way a zoomed or full-screen window does. Swivel never lays a window
+    /// out this big (the center tops out at 80% of the width), so a window like this was made big on purpose.
+    func fills(_ area: CGRect) -> Bool {
+        width >= area.width * 0.9 && height >= area.height * 0.9
+    }
+}
+
 struct LayoutSettings: Equatable {
     /// Share of the screen width the center window gets.
     var centerFraction: CGFloat = 0.35
