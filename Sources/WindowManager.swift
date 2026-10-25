@@ -69,6 +69,7 @@ final class WindowManager: NSObject {
     private var stayPut: WindowID?
     /// Side windows you've resized, which Swivel leaves as they are until you move them.
     private var pinned = Set<WindowID>()
+    private var inMissionControl = false
     /// Set when Swivel focuses a window itself, so the stale focus reported mid-switch is ignored.
     private var expectedFocus: (id: WindowID, until: Date)?
     /// Where the latest layout put each window.
@@ -253,6 +254,24 @@ final class WindowManager: NSObject {
         guard isRunning, prefs.enabled, AXIsProcessTrusted() else {
             highlight.hide()
             return
+        }
+        // Stay out of Mission Control's way entirely: moving windows or drawing over it hides the windows you
+        // came to drag between desktops. What you did there (and what focus it left) is sorted out once it closes.
+        if let screen = Self.screen, Self.missionControlIsOpen(on: screen.axFrame) {
+            if !inMissionControl { Log.write("mission control: open, holding still") }
+            inMissionControl = true
+            highlight.hide()
+            overlay.cancel()
+            press = nil
+            endedDrag = nil
+            stayPut = nil
+            needsScan = true
+            scheduleUpdate(after: 0.25)
+            return
+        }
+        if inMissionControl {
+            inMissionControl = false
+            Log.write("mission control: closed")
         }
         // Never move a window while a mouse button is down: it may be mid-click or mid-drag.
         if NSEvent.pressedMouseButtons != 0 {
@@ -561,6 +580,19 @@ final class WindowManager: NSObject {
             result[id] = (pid, frame)
         }
         return result
+    }
+
+    /// Whether Mission Control (or App Exposé, or Launchpad) is showing. There's no public notification for it,
+    /// but while it's up the Dock covers the screen with a window of its own, above normal windows.
+    private static func missionControlIsOpen(on screenFrame: CGRect) -> Bool {
+        guard let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first?.processIdentifier,
+              let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] else { return false }
+        return list.contains { info in
+            guard info[kCGWindowOwnerPID as String] as? pid_t == dock, (info[kCGWindowLayer as String] as? Int ?? 0) > 0,
+                  let bounds = info[kCGWindowBounds as String] as? NSDictionary,
+                  let frame = CGRect(dictionaryRepresentation: bounds as CFDictionary) else { return false }
+            return frame.fills(screenFrame)
+        }
     }
 
     /// Asks each app with windows on screen which of them are normal, resizable windows.

@@ -238,7 +238,7 @@ final class TransitionOverlay {
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
         panel.animationBehavior = .none
-        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+        panel.collectionBehavior = [.canJoinAllSpaces, .transient, .ignoresCycle, .fullScreenAuxiliary]  // hidden in Mission Control
         panel.sharingType = .none
         let view = NSView()
         view.layer = host

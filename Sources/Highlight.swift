@@ -20,7 +20,7 @@ final class Highlight {
         window.hasShadow = false
         window.ignoresMouseEvents = true
         window.level = .normal
-        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        window.collectionBehavior = [.canJoinAllSpaces, .transient, .ignoresCycle]  // hidden in Mission Control
         window.sharingType = .none
         window.isReleasedWhenClosed = false
         window.animationBehavior = .none
