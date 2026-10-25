@@ -1,0 +1,1414 @@
+<title>Swivel Film</title>
+<style>
+:root {
+  --sf: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --sft: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, monospace;
+
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --ink: #1d1d1f;
+  --muted: #6e6e73;
+  --line: rgba(0, 0, 0, .1);
+  --track: rgba(0, 0, 0, .12);
+  --accent: #0071e3;
+  --new: #b64400;
+  --kbd: #ffffff;
+  --kbd-edge: rgba(0, 0, 0, .14);
+  --frame-shadow: 0 30px 60px -30px rgba(0, 0, 0, .35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #000000;
+    --surface: #161617;
+    --ink: #f5f5f7;
+    --muted: #86868b;
+    --line: rgba(255, 255, 255, .12);
+    --track: rgba(255, 255, 255, .16);
+    --accent: #2997ff;
+    --new: #ff8a3d;
+    --kbd: #1d1d1f;
+    --kbd-edge: rgba(255, 255, 255, .16);
+    --frame-shadow: 0 0 0 1px rgba(255, 255, 255, .08);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #000000;
+  --surface: #161617;
+  --ink: #f5f5f7;
+  --muted: #86868b;
+  --line: rgba(255, 255, 255, .12);
+  --track: rgba(255, 255, 255, .16);
+  --accent: #2997ff;
+  --new: #ff8a3d;
+  --kbd: #1d1d1f;
+  --kbd-edge: rgba(255, 255, 255, .16);
+  --frame-shadow: 0 0 0 1px rgba(255, 255, 255, .08);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sft);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------- page ---------------- */
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px 72px;
+}
+.frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: var(--frame-shadow);
+  cursor: pointer;
+  outline: none;
+}
+.frame:focus-visible { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent); }
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+}
+.play {
+  flex: 0 0 auto;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  display: grid; place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+.play svg { width: 14px; height: 14px; display: block; }
+.play svg[hidden] { display: none; }
+.chapters {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+}
+.ch {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 10px 0 2px;
+  margin: 0;
+  min-width: 0;
+  flex: var(--d) 1 0;
+  text-align: left;
+  cursor: pointer;
+  color: var(--muted);
+  font: 500 12px/1.2 var(--sft);
+  border-radius: 6px;
+}
+.ch .bar {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--track);
+  overflow: hidden;
+}
+.ch .fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--ink);
+  border-radius: inherit;
+}
+.ch .lbl {
+  display: block;
+  margin-top: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ch[aria-current="true"] { color: var(--ink); }
+.ch:hover { color: var(--ink); }
+.play:focus-visible, .ch:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.time {
+  flex: 0 0 auto;
+  min-width: 78px;
+  text-align: right;
+  font: 500 13px/1 var(--sft);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.now {
+  display: none;
+  margin-top: 8px;
+  min-height: 88px;
+}
+.now span { display: block; }
+.now .n-eb { font: 600 13px/1.3 var(--sft); color: var(--muted); }
+.now .n-eb b { font-weight: 600; color: var(--new); margin-right: 2px; }
+.now .n-hd { margin-top: 3px; font: 600 18px/1.25 var(--sf); letter-spacing: -.01em; color: var(--ink); }
+.now .n-ft { margin-top: 4px; font: 400 14px/1.4 var(--sft); color: var(--muted); }
+
+/* ---------------- cheat sheet ---------------- */
+.sheet { margin-top: 56px; }
+.sheet h2 {
+  margin: 0;
+  font: 600 32px/1.12 var(--sf);
+  letter-spacing: -.012em;
+}
+.sheet .sub {
+  margin: 8px 0 0;
+  font: 400 17px/1.45 var(--sft);
+  color: var(--muted);
+}
+.rules {
+  list-style: none;
+  margin: 26px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.rules li {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  font: 400 16px/1.45 var(--sft);
+}
+.rules .do { font-weight: 600; }
+.rules .do small { display: block; font-weight: 400; font-size: 14px; color: var(--muted); margin-top: 2px; }
+.rules .does { color: var(--ink); }
+.rules .does span { color: var(--muted); }
+.rules .new { color: var(--new); font-weight: 600; font-size: 13px; margin-right: 8px; }
+.rules .hd {
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--line);
+  font: 600 13px/1 var(--sft);
+  color: var(--muted);
+}
+.rules .hd + li { border-top: 0; }
+.keys-h {
+  margin: 40px 0 0;
+  font: 600 21px/1.2 var(--sf);
+  letter-spacing: -.005em;
+}
+.keys {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 32px;
+}
+.keys li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font: 400 16px/1.35 var(--sft);
+}
+.kb { display: inline-flex; gap: 4px; flex: 0 0 auto; align-items: center; }
+.kb .or { color: var(--muted); font-size: 14px; padding: 0 2px; }
+kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  font: 500 14px/1 var(--sft);
+  color: var(--ink);
+  background: var(--kbd);
+  border: 1px solid var(--kbd-edge);
+  border-bottom-width: 2px;
+  border-radius: 7px;
+}
+kbd svg { width: 15px; height: 10px; display: block; }
+/* the Swivel menu-bar item, drawn as it sits in the menu bar rather than as a key */
+.mbi { display: inline-grid; place-items: center; height: 28px; padding: 0 9px; border-radius: 7px; background: var(--track); color: var(--ink); }
+.mbi svg { width: 18px; height: 12px; display: block; }
+
+@media (max-width: 720px) {
+  .page { padding: 16px 16px 56px; }
+  .frame { border-radius: 12px; }
+  .controls { gap: 12px; margin-top: 10px; }
+  .play { width: 44px; height: 44px; }
+  .chapters { gap: 3px; }
+  .ch { padding: 20px 0; }
+  .ch .lbl { display: none; }
+  .now { display: block; }
+  .sheet { margin-top: 40px; }
+  .sheet h2 { font-size: 26px; }
+  .rules li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .rules .hd { display: none; }
+  .keys { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------------- capture mode: only the film ---------------- */
+html.capture, html.capture body { background: #000; overflow: hidden; margin: 0; }
+html.capture .page { padding: 0; margin: 0; max-width: none; }
+html.capture .frame { width: 1920px; height: 1080px; aspect-ratio: auto; border-radius: 0; box-shadow: none; cursor: default; }
+html.capture .controls, html.capture .now, html.capture .sheet { display: none; }
+
+/* ---------------- the film (fixed 1920x1080; no CSS transitions or animations) ---------------- */
+#film {
+  position: absolute;
+  left: 0; top: 0;
+  width: 1920px; height: 1080px;
+  transform-origin: 0 0;
+  background: #000;
+  overflow: hidden;
+  color: #f5f5f7;
+  font-family: var(--sf);
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#film *, #film *::before, #film *::after { box-sizing: border-box; transition: none !important; animation: none !important; }
+
+#world { position: absolute; left: 0; top: 0; width: 5120px; height: 1440px; transform-origin: 0 0; }
+.floor {
+  position: absolute; left: -500px; top: 1380px; width: 6120px; height: 1100px;
+  background: radial-gradient(closest-side, rgba(150, 168, 196, .075), rgba(150, 168, 196, .025) 55%, rgba(150, 168, 196, 0));
+}
+.bezel {
+  position: absolute;
+  left: -23.2727px; top: -23.2727px;
+  width: 5166.5454px; height: 1486.5454px;
+  border-radius: 40.7273px;
+  background: #0D0D0F;
+  box-shadow: 0 0 465px rgba(140, 160, 190, .10), inset 0 2.9091px 0 rgba(255, 255, 255, .14), inset 0 0 0 2px rgba(255, 255, 255, .025);
+}
+.screen {
+  position: absolute; left: 0; top: 0; width: 5120px; height: 1440px;
+  border-radius: 17.4545px;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(55% 120% at 14% 0%, rgba(150, 150, 155, .42), rgba(150, 150, 155, 0) 72%),
+    radial-gradient(60% 140% at 92% 100%, rgba(104, 104, 109, .38), rgba(104, 104, 109, 0) 70%),
+    linear-gradient(162deg, #5E5E63 0%, #46464A 46%, #333336 100%);
+}
+.sheen {
+  position: absolute; inset: 0; z-index: 980; pointer-events: none;
+  background: linear-gradient(115deg, rgba(255, 255, 255, .035), rgba(255, 255, 255, 0) 40%);
+}
+
+/* menu bar */
+.mbar {
+  position: absolute; left: 0; top: 0; width: 5120px; height: 24px; z-index: 960;
+  background: rgba(28, 28, 30, .6);
+  display: flex; align-items: center; gap: 30px;
+  padding: 0 26px;
+  font: 500 14.5px/24px var(--sft);
+  color: rgba(245, 245, 247, .78);
+  white-space: nowrap;
+}
+.mbar b { font-weight: 700; color: #f5f5f7; min-width: 60px; }
+.mbar .r { margin-left: auto; display: flex; align-items: center; gap: 26px; color: rgba(245, 245, 247, .9); }
+.mbar .r svg { width: 24px; height: 16px; display: block; }
+.mbar .ico { width: 22px; height: 12px; border-radius: 3px; border: 1.6px solid rgba(245, 245, 247, .75); position: relative; }
+.mbar .ico::after { content: ""; position: absolute; left: 2px; top: 2px; bottom: 2px; width: 60%; background: rgba(245, 245, 247, .85); border-radius: 1px; }
+
+/* windows */
+.win { position: absolute; overflow: hidden; }
+.win::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 5; }
+.win .bar { position: absolute; left: 0; top: 0; right: 0; }
+.tl { position: absolute; width: 15px; height: 15px; border-radius: 50%; }
+.tl.a { left: 18.5px; } .tl.b { left: 41.5px; } .tl.c { left: 64.5px; }
+.ttl { position: absolute; left: 0; right: 0; top: 0; text-align: center; font: 600 15.5px/1 var(--sft); white-space: nowrap; }
+
+#wT { background: #252528; border-radius: 20px; }
+#wT::after { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .11); }
+#wT .bar { height: 34px; background: #343437; box-shadow: 0 1px 0 rgba(0, 0, 0, .6); }
+#wT .tl { top: 9.5px; background: #4E4E52; }
+#wT .ttl { line-height: 34px; color: #8E8E93; }
+#wT.act .ttl { color: #C7C7CC; }
+#wT .tx {
+  position: absolute; left: 28px; top: 56px;
+  font: 400 16px/25px var(--mono);
+  color: #8E8E93;
+  white-space: pre;
+}
+#wT .tx .p { color: #E5E5EA; }
+#wT .tx .s { color: #AEAEB2; }
+#wT .tx .k { display: inline-block; width: 9.6px; height: 20px; vertical-align: -4px; background: #E5E5EA; }
+
+#wC { background: #FAF9F6; border-radius: 32px; }
+#wC::after { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .06); }
+#wC .bar { height: 56px; background: #F1F0EC; box-shadow: 0 1px 0 rgba(0, 0, 0, .07); }
+#wC .tl, #wB .tl { background: #D1D1D6; }
+#wC .tl { top: 20.5px; }
+#wC .ttl { line-height: 56px; color: #6E6E73; font-size: 16px; }
+#wC.act .ttl { color: #3A3A3C; }
+#wC .col {
+  position: absolute; left: 50%; top: 56px; width: 1040px; margin-left: -520px;
+  padding-top: 64px;
+  font: 400 20px/32px var(--sft);
+  color: #3D3D3A;
+}
+#wC .u {
+  margin: 0 0 30px auto;
+  width: fit-content; max-width: 680px;
+  background: #EDEBE4;
+  border-radius: 24px;
+  padding: 16px 24px;
+  color: #1F1E1D;
+}
+#wC .a { margin: 0 0 44px; max-width: 980px; }
+#wC .ask {
+  position: absolute; left: 50%; bottom: 44px; width: 1040px; margin-left: -520px; height: 88px;
+  border-radius: 30px; background: #FFFFFF;
+  box-shadow: 0 0 0 1.5px #E3E0D8, 0 4px 14px rgba(0, 0, 0, .04);
+  font: 400 20px/88px var(--sft); color: #A19E96; padding-left: 30px;
+}
+#wC .ask i { position: absolute; right: 22px; top: 22px; width: 44px; height: 44px; border-radius: 50%; background: #CFCBC1; }
+
+#wB { background: #FFFFFF; border-radius: 32px; }
+#wB::after { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .06); }
+#wB .bar { height: 64px; background: #F2F2F4; box-shadow: 0 1px 0 rgba(0, 0, 0, .08); }
+#wB .tl { top: 24.5px; }
+.tab {
+  position: absolute; left: 0; top: 10px; width: 200px; height: 44px;
+  border-radius: 13px;
+  background: #E3E3E8;
+  color: #6E6E73;
+  font: 500 19px/44px var(--sft);
+  padding-left: 50px;
+  white-space: nowrap;
+}
+.tab i { position: absolute; left: 20px; top: 13px; width: 18px; height: 18px; border-radius: 5px; background: #C7C7CC; }
+.tab.on { background: #FFFFFF; color: #1D1D1F; box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 0 0 1px rgba(0, 0, 0, .04); }
+.tab.on i { background: #8E8E93; }
+#wB .tools { position: absolute; right: 30px; top: 21px; display: flex; gap: 26px; }
+#wB .tools svg { width: 22px; height: 22px; display: block; }
+#wB .pg {
+  position: absolute; left: 88px; top: 64px; width: 1000px;
+  padding-top: 52px;
+  font: 400 20px/32px var(--sft);
+  color: #424245;
+}
+#wB .crumb { font: 500 16px/1 var(--sft); color: #8E8E93; }
+#wB h3 { margin: 18px 0 12px; font: 700 50px/1.05 var(--sf); letter-spacing: -.012em; color: #1D1D1F; }
+#wB h4 { margin: 34px 0 10px; font: 600 28px/1.1 var(--sf); color: #1D1D1F; }
+#wB p { margin: 0; max-width: 900px; }
+#wB .hero { margin-top: 30px; height: 250px; border-radius: 18px; background: #ECEEF1; position: relative; }
+#wB .hero b { position: absolute; top: 46px; height: 158px; border-radius: 10px; background: #D8D8DC; }
+#wB ul { margin: 0; padding: 0 0 0 26px; }
+#wB li { margin: 0 0 4px; }
+
+/* Swivel's glow ring (world space) */
+.ring {
+  position: absolute; left: 0; top: 0;
+  border: 4px solid #0091FF;
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* lockups (film space) */
+.cap { position: absolute; left: 0; top: 0; width: 1920px; height: 370px; pointer-events: none; display: none; }
+.eyebrow, .head, .foot { position: absolute; left: 0; width: 1920px; text-align: center; white-space: nowrap; }
+.eyebrow { top: 158px; height: 36px; font: 600 30px/36px var(--sf); letter-spacing: .004em; color: #86868B; }
+.eyebrow.brand { color: #F5F5F7; font-size: 34px; }
+.eyebrow.brand svg { width: 30px; height: 20px; display: inline-block; vertical-align: -1px; margin-right: 14px; }
+.head { top: 206px; height: 80px; font: 600 76px/80px var(--sf); letter-spacing: -.013em; color: #F5F5F7; }
+.foot { top: 308px; height: 32px; font: 600 26px/32px var(--sf); letter-spacing: .006em; color: #86868B; }
+.w { display: inline-block; opacity: 0; }
+.w.new { color: #F56300; font-size: 24px; letter-spacing: -.005em; margin-right: 14px; }
+
+/* cursor + click rings (film space, constant size) */
+#cursor { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 40; pointer-events: none; }
+#cursor svg { position: absolute; display: block; overflow: visible; filter: drop-shadow(0 2px 2.5px rgba(0, 0, 0, .5)); }
+#cursor .arrow { left: -1.9px; top: -1.9px; width: 21px; height: 30.5px; }
+#cursor .resize { left: -22px; top: -12px; width: 44px; height: 24px; }
+.click {
+  position: absolute; left: 0; top: 0; width: 100px; height: 100px; margin: -50px 0 0 -50px;
+  border-radius: 50%; border: 2.5px solid #fff; opacity: 0; z-index: 39; pointer-events: none;
+}
+
+/* end card */
+#end { position: absolute; inset: 0; display: none; }
+.wm { position: absolute; left: 0; top: 186px; width: 1920px; height: 96px; display: flex; align-items: center; justify-content: center; gap: 26px; opacity: 0; }
+.wm svg { width: 72px; height: 48px; display: block; overflow: visible; }
+.wm span { font: 600 80px/96px var(--sf); letter-spacing: -.015em; color: #F5F5F7; }
+.erow { position: absolute; left: 0; width: 1920px; height: 64px; }
+.ekeys { position: absolute; right: 990px; top: 0; height: 64px; display: flex; gap: 12px; align-items: center; }
+.kw { position: relative; width: 64px; height: 64px; opacity: 0; }
+.kw .halo { position: absolute; left: -6.4px; top: -9.6px; width: 76.8px; height: 83.2px; border-radius: 20px; background: rgba(0, 145, 255, .55); filter: blur(15px); opacity: 0; }
+.key {
+  position: absolute; inset: 0;
+  border-radius: 14px;
+  background: radial-gradient(75% 75% at 50% 92%, #1A1A1C, #0E0E0F);
+  border: 1px solid rgba(255, 255, 255, .12);
+  box-shadow: inset 0 1px 1px 1px rgba(255, 255, 255, .10), 0 2px .5px 3px rgba(0, 0, 0, .4);
+  display: grid; place-items: center;
+  font: 500 30px/1 var(--sft); color: #F5F5F7;
+}
+.key svg { width: 33px; height: 22px; display: block; }
+.key .ctl { display: block; transform: translateY(5px); }
+.sep { font: 500 30px/64px var(--sft); color: #86868B; opacity: 0; padding: 0 2px; }
+.elabel { position: absolute; left: 990px; top: 0; font: 600 30px/64px var(--sf); letter-spacing: .004em; color: #F5F5F7; white-space: nowrap; opacity: 0; }
+/* a slice of the menu bar: the Swivel icon is a status item, not a key */
+.mbs { position: relative; width: 236px; height: 44px; opacity: 0; }
+.mbs .strip {
+  position: absolute; inset: 0; border-radius: 12px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .075) 58%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+.mbs .dot { position: absolute; top: 15px; height: 14px; border-radius: 4px; background: rgba(245, 245, 247, .22); }
+.mbs .it { position: absolute; right: 4px; top: 4px; width: 60px; height: 36px; border-radius: 9px; display: grid; place-items: center; }
+.mbs .hl { position: absolute; inset: 0; border-radius: inherit; background: rgba(255, 255, 255, .2); opacity: 0; }
+.mbs svg { position: relative; width: 30px; height: 20px; display: block; }
+.menu {
+  position: absolute; left: 866px; top: 700px; width: 600px;
+  padding: 8px;
+  border-radius: 16px;
+  background: rgba(38, 38, 42, .82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .10), 0 0 0 1px rgba(255, 255, 255, .10), 0 24px 60px rgba(0, 0, 0, .7);
+  transform-origin: 30px 0;
+  opacity: 0;
+}
+.mi { position: relative; height: 46px; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; font: 500 23px/46px var(--sft); color: #F5F5F7; white-space: nowrap; }
+.mi kbd2 { color: #98989D; font: 500 22px/46px var(--sft); letter-spacing: .04em; }
+.mi .cap2 { position: absolute; inset: 0; border-radius: 9px; background: #0091FF; opacity: 0; }
+.mi span, .mi kbd2 { position: relative; }
+.msep { height: 1px; margin: 6px 14px; background: rgba(255, 255, 255, .12); }
+</style>
+
+<div class="page">
+  <div class="frame" id="frame" role="button" tabindex="0" aria-label="Pause the Swivel film">
+    <div id="film" aria-hidden="true">
+      <div id="world">
+        <div class="floor"></div>
+        <div class="bezel"></div>
+        <div class="screen" id="screen">
+          <div class="mbar">
+            <b id="appname">Finder</b><span>File</span><span>Edit</span><span>View</span><span>Window</span><span>Help</span>
+            <span class="r">
+              <svg viewBox="0 0 18 12" aria-hidden="true"><rect x="0" y="1" width="4" height="10" rx="1" fill="#fff" opacity=".55"/><rect x="5.5" y="0" width="7" height="12" rx="1" fill="#fff"/><rect x="14" y="1" width="4" height="10" rx="1" fill="#fff" opacity=".55"/></svg>
+              <i class="ico"></i>
+              <span>Fri 9:41</span>
+            </span>
+          </div>
+
+          <div class="win" id="wT">
+            <div class="bar"><i class="tl a"></i><i class="tl b"></i><i class="tl c"></i><div class="ttl">swivel — zsh — 152×58</div></div>
+            <div class="tx"><span>Last login: Fri Oct 24 09:38:12 on ttys002</span>
+<span class="p">~/swivel % swift build -c release</span>
+Building for production...
+[1/9] Compiling Swivel Layout.swift
+[2/9] Compiling Swivel Highlight.swift
+[3/9] Compiling Swivel Transition.swift
+[4/9] Compiling Swivel WindowManager.swift
+[5/9] Compiling Swivel MenuBar.swift
+[6/9] Emitting module Swivel
+[7/9] Linking Swivel
+[8/9] Applying Swivel
+<span class="s">Build complete! (12.48s)</span>
+<span class="p">~/swivel % ./layout-tests</span>
+  3-way split on 5120 × 1440 ............ <span class="s">ok</span>
+  middle 35%, 12pt gaps ................. <span class="s">ok</span>
+  side resize is kept ................... <span class="s">ok</span>
+  title-bar drag returns to its slot .... <span class="s">ok</span>
+  middle width remembered per screen .... <span class="s">ok</span>
+  full screen is left alone ............. <span class="s">ok</span>
+<span class="s">Executed 6 tests, with 0 failures (0.214s)</span>
+<span class="p">~/swivel % git status</span>
+On branch main
+Your branch is up to date with 'origin/main'.
+nothing to commit, working tree clean
+<span class="p">~/swivel % git log --oneline -8</span>
+<span class="s">9f3c2e1</span> Glide back after a title-bar drag
+<span class="s">4b7a0d8</span> Keep a side window's size after a resize
+<span class="s">e21f5c3</span> Remember the middle width per screen
+<span class="s">7c9e4aa</span> Leave full-screen windows alone
+<span class="s">1d0b6f2</span> Stay on the side during in-window drags
+<span class="s">a83e7c5</span> Hide the glow while a window is zoomed
+<span class="s">5f2d9b0</span> One glide curve for every move
+<span class="s">c4e1a77</span> Pulse the glow when a new window lands
+<span class="p">~/swivel % </span><span class="k" id="tcur"></span></div>
+          </div>
+
+          <div class="win" id="wC">
+            <div class="bar"><i class="tl a"></i><i class="tl b"></i><i class="tl c"></i><div class="ttl">Claude</div></div>
+            <div class="col">
+              <div class="u">Can a window glide back after I drag it?</div>
+              <div class="a">Yes. Swivel waits until you let go, then glides it back into its slot in the 3-way split, at its normal size.</div>
+              <div class="u">And if I resize the middle one?</div>
+              <div class="a">That width becomes the new middle. The side windows narrow or widen to make room, and each screen remembers its own.</div>
+              <div class="u">Leave full screen alone, though.</div>
+              <div class="a">It does. A full-screen window stays put until you shrink it, then it drops back into place.</div>
+            </div>
+            <div class="ask">Reply…<i></i></div>
+          </div>
+
+          <div class="win" id="wB">
+            <div class="bar">
+              <i class="tl a"></i><i class="tl b"></i><i class="tl c"></i>
+              <div class="tab on" id="tabDocs"><i></i>Docs</div>
+              <div class="tab" id="tabInbox"><i></i>Inbox</div>
+              <div class="tab" id="tabRepo"><i></i>Repo</div>
+              <div class="tools">
+                <svg viewBox="0 0 22 22"><rect x="2" y="3.5" width="18" height="15" rx="3.5" fill="none" stroke="#8E8E93" stroke-width="1.8"/><path d="M8 4v14" stroke="#8E8E93" stroke-width="1.8"/></svg>
+                <svg viewBox="0 0 22 22"><path d="M11 3.5v15M3.5 11h15" stroke="#8E8E93" stroke-width="1.9" stroke-linecap="round"/></svg>
+              </div>
+            </div>
+            <div class="pg">
+              <div class="crumb">swivel / README.md</div>
+              <h3>Swivel</h3>
+              <p>A menu-bar app for ultrawide displays. The window you focus sits in the middle with a soft glow, and everything else tiles on either side.</p>
+              <div class="hero"><b style="left:56px;width:250px"></b><b style="left:322px;width:356px;background:#C9CDD3"></b><b style="left:694px;width:250px"></b></div>
+              <h4>How it behaves</h4>
+              <ul>
+                <li>Click a side window and it swivels to the middle.</li>
+                <li>Drag inside a side window and it stays on its side.</li>
+                <li>Resize a side window and it keeps your size.</li>
+                <li>Drag a title bar and it glides back into place.</li>
+                <li>Resize the middle and that becomes the middle width.</li>
+                <li>Full screen stays full screen until you shrink it.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="ring" id="ringA"></div>
+          <div class="ring" id="ringB"></div>
+          <div class="sheen"></div>
+        </div>
+      </div>
+
+      <div id="caps"></div>
+
+      <div id="cursor">
+        <svg class="arrow" viewBox="0 0 22 32"><path d="M2 2 L2 25.6 L7.5 20.4 L11.3 29.2 L15.3 27.5 L11.6 18.9 L19.2 18.9 Z" fill="#0A0A0A" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
+        <svg class="resize" viewBox="0 0 44 24"><path d="M2 12 L11 3.5 V9.2 H17.6 V14.8 H11 V20.5 Z M42 12 L33 3.5 V9.2 H26.4 V14.8 H33 V20.5 Z" fill="#0A0A0A" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><rect x="19.4" y="1.4" width="5.2" height="21.2" rx=".8" fill="#0A0A0A" stroke="#fff" stroke-width="2"/></svg>
+      </div>
+      <div class="click" id="click0"></div>
+      <div class="click" id="click1"></div>
+      <div class="click" id="click2"></div>
+
+      <div id="end">
+        <div class="wm" id="wm">
+          <svg viewBox="0 0 18 12"><rect x="0" y="1" width="4" height="10" rx="1" fill="#86868B"/><rect x="5.5" y="0" width="7" height="12" rx="1" fill="#0091FF" style="filter:drop-shadow(0 0 5px rgba(0,145,255,.6))"/><rect x="14" y="1" width="4" height="10" rx="1" fill="#86868B"/></svg>
+          <span>Swivel</span>
+        </div>
+        <div id="erows"></div>
+        <div class="menu" id="menu">
+          <div class="mi"><span>Bring Left Window to Center</span><kbd2>⌃⌥⌘[</kbd2></div>
+          <div class="mi"><span>Bring Right Window to Center</span><kbd2>⌃⌥⌘]</kbd2></div>
+          <div class="msep"></div>
+          <div class="mi"><i class="cap2" id="mcap"></i><span>Re-tile</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="play" id="play" type="button" aria-label="Pause">
+      <svg class="i-pause" viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="1.5" width="3.4" height="11" rx="1" fill="currentColor"/><rect x="8.6" y="1.5" width="3.4" height="11" rx="1" fill="currentColor"/></svg>
+      <svg class="i-play" viewBox="0 0 14 14" aria-hidden="true" hidden><path d="M3.5 2.1v9.8c0 .6.6.9 1.1.6l7.6-4.9c.4-.3.4-.9 0-1.2L4.6 1.5c-.5-.3-1.1 0-1.1.6z" fill="currentColor"/></svg>
+    </button>
+    <div class="chapters" id="chapters" role="group" aria-label="Chapters"></div>
+    <div class="time" id="time" aria-live="off">0:00 / 0:51</div>
+  </div>
+  <div class="now" id="now"></div>
+
+  <section class="sheet" aria-labelledby="sheet-h">
+    <h2 id="sheet-h">Swivel, in six moves</h2>
+    <p class="sub">On an ultrawide screen, the window you focus sits in the middle with a blue glow. Everything else tiles on either side.</p>
+    <ul class="rules">
+      <li class="hd"><span>You do</span><span>Swivel does</span></li>
+      <li><span class="do">Click a side window</span><span class="does">It swivels into the middle and takes the glow. <span>Only those two windows move.</span></span></li>
+      <li><span class="do"><span class="new">New</span>Drag inside a side window<small>Reorder a tab, select text, drag a file</small></span><span class="does">It takes the glow but stays on its side. <span>A plain click still brings it over.</span></span></li>
+      <li><span class="do"><span class="new">New</span>Resize a side window</span><span class="does">It keeps the size you gave it. <span>Nothing else moves.</span></span></li>
+      <li><span class="do"><span class="new">New</span>Drag a window by its title bar</span><span class="does">When you let go, it glides back into its place. <span>A resized side window returns to its normal size, too.</span></span></li>
+      <li><span class="do"><span class="new">New</span>Resize the middle window</span><span class="does">That becomes the middle width. <span>It re-centers, the sides make room, and each screen remembers its own.</span></span></li>
+      <li><span class="do"><span class="new">New</span>Make a window full screen<small>Double-click the title bar, or use the green button</small></span><span class="does">It stays full screen and nothing else moves. <span>Shrink it, and it drops back into its place.</span></span></li>
+    </ul>
+    <h3 class="keys-h">Shortcuts</h3>
+    <ul class="keys">
+      <li><span class="kb"><kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>T</kbd></span>Turn Swivel off or on</li>
+      <li><span class="kb"><kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>F</kbd></span>Leave one window alone</li>
+      <li><span class="kb"><kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>[</kbd><span class="or">/</span><kbd>]</kbd></span>Bring the left or right window to the middle</li>
+      <li><span class="kb"><span class="mbi" role="img" aria-label="Swivel menu bar icon"><svg viewBox="0 0 18 12" aria-hidden="true"><rect x="0" y="1" width="4" height="10" rx="1" fill="currentColor" opacity=".55"/><rect x="5.5" y="0" width="7" height="12" rx="1" fill="currentColor"/><rect x="14" y="1" width="4" height="10" rx="1" fill="currentColor" opacity=".55"/></svg></span></span>Menu bar icon → Re-tile resets everything</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const capture = location.hash === '#capture';
+  if (capture) document.documentElement.classList.add('capture');
+  const reduce = !capture && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- math ----------
+  const clamp = (x, a = 0, b = 1) => (x < a ? a : x > b ? b : x);
+  const lerp = (a, b, p) => a + (b - a) * p;
+  function bezier(x1, y1, x2, y2) {
+    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+    const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+    const X = u => ((ax * u + bx) * u + cx) * u;
+    const Y = u => ((ay * u + by) * u + cy) * u;
+    const D = u => (3 * ax * u + 2 * bx) * u + cx;
+    return p => {
+      if (p <= 0) return 0;
+      if (p >= 1) return 1;
+      let u = p;
+      for (let i = 0; i < 8; i++) {
+        const e = X(u) - p;
+        if (Math.abs(e) < 1e-7) return Y(u);
+        const d = D(u);
+        if (Math.abs(d) < 1e-6) break;
+        u = clamp(u - e / d);
+      }
+      let lo = 0, hi = 1;
+      u = p;
+      for (let i = 0; i < 40; i++) {
+        const v = X(u);
+        if (Math.abs(v - p) < 1e-7) break;
+        if (v < p) lo = u; else hi = u;
+        u = (lo + hi) / 2;
+      }
+      return Y(u);
+    };
+  }
+  const E = {
+    hand: bezier(.45, 0, .55, 1),      // cursor travel and drags (drags track 1:1)
+    swivel: bezier(.32, 0, .18, 1),    // Swivel's one glide (Transition.swift)
+    apple: bezier(.455, .03, .515, .955),
+    out: bezier(.3, .6, .1, 1),
+    exit: bezier(.66, 0, .1, 1),
+    ring: bezier(0, 0, .2, 1),
+    push: bezier(.42, 0, .2, 1),       // camera push: soft start, settles before the hand acts
+    pull: bezier(.65, 0, .35, 1),
+    fade: bezier(.4, 0, .2, 1),
+    recede: bezier(.4, 0, 1, 1),
+    key: bezier(.23, 1, .32, 1),
+  };
+  const outQuad = p => 1 - (1 - p) * (1 - p);
+  const f2 = v => Math.round(v * 100) / 100;
+  const f3 = v => Math.round(v * 1000) / 1000;
+
+  // ---------- constants ----------
+  const K = 0.34375; // film px per screen pt at camera scale 1
+  const S = { intro: 0, s1: 4800, s2: 10800, s3: 17000, s4: 23200, s5: 29800, s6: 36200, end: 45000 };
+  const DUR = 51800;
+  const CHAPTERS = [
+    { id: 'intro', label: 'Intro', name: 'Intro', t: S.intro, hold: 3400 },
+    { id: 's1', label: 'Click', name: 'Click a side window', t: S.s1, hold: S.s1 + 4200 },
+    { id: 's2', label: 'Drag inside', name: 'Drag inside a side window', t: S.s2, hold: S.s2 + 4400 },
+    { id: 's3', label: 'Resize side', name: 'Resize a side window', t: S.s3, hold: S.s3 + 4400 },
+    { id: 's4', label: 'Title bar', name: 'Drag a window by its title bar', t: S.s4, hold: S.s4 + 4600 },
+    { id: 's5', label: 'Resize middle', name: 'Resize the middle window', t: S.s5, hold: S.s5 + 4600 },
+    { id: 's6', label: 'Full screen', name: 'Make a window full screen', t: S.s6, hold: S.s6 + 3800 },
+    { id: 'end', label: 'Shortcuts', name: 'Shortcuts', t: S.end, hold: S.end + 4400 },
+  ];
+
+  const SLOT = {
+    L: [12, 36, 1640, 1392], M: [1664, 36, 1792, 1392], R: [3468, 36, 1640, 1392],
+    L2: [12, 36, 1384, 1392], M2: [1408, 36, 2304, 1392], R2: [3724, 36, 1384, 1392],
+    FULL: [0, 0, 5120, 1440],
+  };
+  const RADIUS = { T: 20, C: 32, B: 32 };
+  const APP = { T: 'Terminal', C: 'Claude', B: 'Browser' };
+
+  // Windows: geometry keyframes [start, {t, d, to, e}...]. Drags use the hand's ease, so they track the cursor 1:1.
+  const { s1, s2, s3, s4, s5, s6 } = S;
+  const WK = {
+    T: [SLOT.L,
+      { t: s1 + 1740, d: 380, to: SLOT.M, e: E.swivel },
+      { t: s5 + 1700, d: 900, to: [1664, 36, 2304, 1392], e: E.hand },
+      { t: s5 + 2710, d: 380, to: SLOT.M2, e: E.swivel },
+      { t: s6 + 1900, d: 380, to: SLOT.FULL, e: E.swivel },
+      { t: s6 + 5600, d: 380, to: SLOT.M2, e: E.swivel }],
+    C: [SLOT.M,
+      { t: s1 + 1740, d: 380, to: SLOT.L, e: E.swivel },
+      { t: s5 + 2710, d: 380, to: SLOT.L2, e: E.swivel }],
+    B: [SLOT.R,
+      { t: s3 + 1700, d: 800, to: [3900, 36, 1208, 1392], e: E.hand },
+      { t: s4 + 1700, d: 900, to: [3340, 296, 1208, 1392], e: E.hand },
+      { t: s4 + 2710, d: 380, to: SLOT.R, e: E.swivel },
+      { t: s5 + 2710, d: 380, to: SLOT.R2, e: E.swivel }],
+  };
+  // Lift shadow on Swivel's glides: center-bound .40, others .25, peaking at 45%.
+  const LIFT = [
+    { w: 'T', t: s1 + 1740, peak: .40 }, { w: 'C', t: s1 + 1740, peak: .25 },
+    { w: 'B', t: s4 + 2710, peak: .25 },
+    { w: 'T', t: s5 + 2710, peak: .40 }, { w: 'C', t: s5 + 2710, peak: .25 }, { w: 'B', t: s5 + 2710, peak: .25 },
+    { w: 'T', t: s6 + 5600, peak: .40 },
+  ];
+  // macOS focus (instant on press): traffic lights, menu-bar app name, raise.
+  const ACT = [[1500, 'C'], [s1 + 1600, 'T'], [s2 + 1650, 'B'], [s5 + 1600, 'T']];
+  // Swivel's glow always sits on its owner's live outline, never on empty desktop. When a window starts to move
+  // (a drag, a resize, a glide out of the middle, full screen) the glow fades out; it fades back in on the
+  // window's final outline as it lands, with the landing pulse. 'show' while another glow is up is a crossfade.
+  const RING = [
+    { t: 1500, kind: 'show', owner: 'C', pulse: 1580 },
+    { t: s1 + 1740, kind: 'hide' },                                // Claude glides out of the middle
+    { t: s1 + 2040, kind: 'show', owner: 'T', pulse: s1 + 2120 },  // on Terminal as it lands
+    { t: s2 + 2560, kind: 'show', owner: 'B', pulse: s2 + 2640 },  // focus after the in-window drag
+    { t: s3 + 1700, kind: 'hide' },                                // edge drag starts
+    { t: s3 + 2610, kind: 'show', owner: 'B', pulse: s3 + 2690 },  // after release, on the kept size
+    { t: s4 + 1700, kind: 'hide' },                                // title-bar drag starts
+    { t: s4 + 3010, kind: 'show', owner: 'B', pulse: s4 + 3090 },  // as the glide lands in SLOT.R
+    { t: s5 + 2710, kind: 'hide', d: 200 },                        // the sides make room
+    { t: s5 + 3010, kind: 'show', owner: 'T', pulse: s5 + 3090 },  // on the new middle as it lands
+    { t: s6 + 1900, kind: 'hide' },                                // full screen: no glow
+    { t: s6 + 5900, kind: 'show', owner: 'T', pulse: s6 + 5980 },  // back in its place
+  ];
+  // Cursor path (screen pt). Travel arcs; drags are straight.
+  const CUR0 = [2700, 980];
+  const CK = [
+    { t: s1 + 700, d: 800, to: [832, 560], arc: true },
+    { t: s2 + 400, d: 950, to: [3660, 80], arc: true },
+    { t: s2 + 1750, d: 700, to: [3880, 80] },
+    { t: s3 + 700, d: 800, to: [3468, 720], arc: true },
+    { t: s3 + 1700, d: 800, to: [3900, 720] },
+    { t: s4 + 700, d: 800, to: [4840, 70], arc: true },
+    { t: s4 + 1700, d: 900, to: [4280, 330] },
+    { t: s5 + 700, d: 800, to: [3456, 720], arc: true },
+    { t: s5 + 1700, d: 900, to: [3968, 720] },
+    { t: s6 + 700, d: 800, to: [2560, 53], arc: true },
+    { t: s6 + 4500, d: 500, to: [2560, 17] },            // up to the full-screen title bar
+  ];
+  const RESIZE = [[s3 + 1500, s4 + 760], [s5 + 1500, s5 + 2760]];
+  const PRESS = [
+    [s1 + 1600, s1 + 1680],
+    [s2 + 1650, s2 + 2500],
+    [s3 + 1600, s3 + 2550],
+    [s4 + 1600, s4 + 2650],
+    [s5 + 1600, s5 + 2650],
+    [s6 + 1600, s6 + 1670], [s6 + 1790, s6 + 1860],
+    [s6 + 5300, s6 + 5370], [s6 + 5490, s6 + 5560],
+  ];
+  // Tabs (S2): Docs is dragged +220pt; Inbox slides over when Docs' leading edge crosses its center.
+  const TAB_DRAG = { t: s2 + 1750, d: 700, dx: 220 };
+  const TAB_CROSS = (() => {
+    const need = 106 / 220; // Docs right edge (300+dx) reaches Inbox center (406)
+    let lo = 0, hi = 1;
+    for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (E.hand(m) < need) lo = m; else hi = m; }
+    return TAB_DRAG.t + TAB_DRAG.d * hi;
+  })();
+
+  // Captions: eyebrow = what you do, headline = what Swivel does (revealed as it lands), footnote = the detail.
+  const CAPS = [
+    { at: S.intro, brand: true, eb: 'Swivel', ebT: 500, hd: 'Your focus, front and center.', hdT: 1550,
+      ft: [{ text: 'For ultrawide displays · 5120 × 1440', t: 2600 }], exit: 4200 },
+    { at: s1, eb: 'Click a side window', hd: 'It swivels to the middle.', hdT: 2050,
+      ft: [{ text: 'Only those two windows move.', t: 3200 }], exit: 5500 },
+    { at: s2, isNew: true, eb: 'Drag inside a side window', hd: 'It stays on its side.', hdT: 2600,
+      ft: [{ text: 'A plain click still brings it over.', t: 3700 }], exit: 5700 },
+    { at: s3, isNew: true, eb: 'Resize a side window', hd: 'It keeps the size you gave it.', hdT: 2650,
+      ft: [{ text: 'Nothing else moves.', t: 3700 }], exit: 5700 },
+    { at: s4, isNew: true, eb: 'Drag a window by its title bar', hd: 'It glides back into place.', hdT: 2750,
+      ft: [{ text: 'Back at its normal size, too.', t: 3800 }], exit: 5600 },
+    { at: s5, isNew: true, eb: 'Resize the middle window', hd: 'That becomes the middle width.', hdT: 2750,
+      ft: [{ text: 'Each screen remembers its own.', t: 3800 }], exit: 5900 },
+    { at: s6, isNew: true, eb: 'Make a window full screen', hd: 'It stays full screen.', hdT: 2000,
+      ft: [{ text: 'Double-click the title bar, or use the green button.', t: 2500, out: 5050 },
+           { text: 'Shrink it, and it drops back in.', t: 6100 }], exit: 7700 },
+  ];
+
+  const MARK = '<svg viewBox="0 0 18 12" aria-hidden="true"><rect x="0" y="1" width="4" height="10" rx="1" fill="#F5F5F7" opacity=".55"/><rect x="5.5" y="0" width="7" height="12" rx="1" fill="#F5F5F7"/><rect x="14" y="1" width="4" height="10" rx="1" fill="#F5F5F7" opacity=".55"/></svg>';
+
+  // chords: key indexes pressed together (modifiers first, the letter last); MARK is the menu-bar status item.
+  const ROWS = [
+    { keys: ['⌃', '⌥', '⌘', 'T'], chords: [[0, 1, 2, 3]], label: 'Turn Swivel off or on' },
+    { keys: ['⌃', '⌥', '⌘', 'F'], chords: [[0, 1, 2, 3]], label: 'Leave one window alone' },
+    { keys: ['⌃', '⌥', '⌘', '[', '/', ']'], chords: [[0, 1, 2, 3], [0, 1, 2, 5]], label: 'Bring left or right to the middle' },
+    { keys: ['MARK'], chords: [], label: 'Re-tile resets everything', menu: true },
+  ];
+  const CHORD = { mod: 40, letter: 160, hold: 320, gap: 560 }; // modifier stagger, letter down, common release, next chord
+  const ROW_Y = [368, 458, 548, 638];
+  const ROW_T = [1100, 1600, 2100, 2600];
+
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const film = $('film'), frame = $('frame'), world = $('world');
+  const win = { T: $('wT'), C: $('wC'), B: $('wB') };
+  const ringEls = [$('ringA'), $('ringB')];
+  const cursor = $('cursor'), arrow = cursor.querySelector('.arrow'), resize = cursor.querySelector('.resize');
+  const clicks = [$('click0'), $('click1'), $('click2')];
+  const appname = $('appname'), tcur = $('tcur'), mbar = document.querySelector('#film .mbar');
+  const tabs = { Docs: $('tabDocs'), Inbox: $('tabInbox'), Repo: $('tabRepo') };
+  const endEl = $('end'), wm = $('wm'), menu = $('menu'), mcap = $('mcap');
+
+  const memo = new WeakMap();
+  function css(el, prop, val) {
+    let m = memo.get(el);
+    if (!m) memo.set(el, (m = {}));
+    if (m[prop] !== val) { m[prop] = val; el.style[prop] = val; }
+  }
+  function cls(el, name, on) {
+    let m = memo.get(el);
+    if (!m) memo.set(el, (m = {}));
+    const k = 'c:' + name;
+    if (m[k] !== on) { m[k] = on; el.classList.toggle(name, on); }
+  }
+
+  function words(text, extraClass) {
+    const frag = document.createDocumentFragment();
+    const out = [];
+    text.split(' ').forEach((w, i) => {
+      if (i) frag.appendChild(document.createTextNode(' '));
+      const s = document.createElement('span');
+      s.className = 'w' + (extraClass ? ' ' + extraClass : '');
+      s.textContent = w;
+      frag.appendChild(s);
+      out.push(s);
+    });
+    return { frag, out };
+  }
+  const capsEl = $('caps');
+  CAPS.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'cap';
+    const eb = document.createElement('div');
+    eb.className = 'eyebrow' + (c.brand ? ' brand' : '');
+    c.ebW = [];
+    if (c.brand) {
+      const s = document.createElement('span');
+      s.className = 'w';
+      s.innerHTML = MARK.replace('<svg ', '<svg ') + 'Swivel';
+      eb.appendChild(s);
+      c.ebW.push(s);
+    } else {
+      if (c.isNew) {
+        const n = document.createElement('span');
+        n.className = 'w new';
+        n.textContent = 'New';
+        eb.appendChild(n);
+        c.ebW.push(n);
+      }
+      const w = words(c.eb);
+      eb.appendChild(w.frag);
+      c.ebW.push(...w.out);
+    }
+    const hd = document.createElement('div');
+    hd.className = 'head';
+    const hw = words(c.hd);
+    hd.appendChild(hw.frag);
+    c.hdW = hw.out;
+    el.append(eb, hd);
+    c.ftEl = c.ft.map(f => {
+      const d = document.createElement('div');
+      d.className = 'foot';
+      d.textContent = f.text;
+      d.style.opacity = '0';
+      el.appendChild(d);
+      return d;
+    });
+    c.el = el;
+    capsEl.appendChild(el);
+  });
+
+  const erows = $('erows');
+  ROWS.forEach((r, i) => {
+    const row = document.createElement('div');
+    row.className = 'erow';
+    row.style.top = ROW_Y[i] + 'px';
+    const keys = document.createElement('div');
+    keys.className = 'ekeys';
+    r.kEls = [];
+    r.keys.forEach((k, j) => {
+      if (k === '/') {
+        const s = document.createElement('span');
+        s.className = 'sep';
+        s.textContent = '/';
+        keys.appendChild(s);
+        r.kEls.push({ el: s, sep: true });
+        return;
+      }
+      if (k === 'MARK') {
+        const m = document.createElement('span');
+        m.className = 'mbs';
+        m.innerHTML = '<span class="strip"></span><span class="dot" style="left:92px;width:24px"></span><span class="dot" style="left:128px;width:32px"></span><span class="it"><span class="hl"></span>' + MARK + '</span>';
+        keys.appendChild(m);
+        r.kEls.push({ el: m, hl: m.querySelector('.hl'), strip: true, j });
+        return;
+      }
+      const kw = document.createElement('span');
+      kw.className = 'kw';
+      kw.innerHTML = '<span class="halo"></span><span class="key">' + (k === 'MARK' ? MARK : k === '⌃' ? '<span class="ctl">⌃</span>' : k) + '</span>';
+      keys.appendChild(kw);
+      r.kEls.push({ el: kw, key: kw.querySelector('.key'), halo: kw.querySelector('.halo'), j });
+    });
+    const label = document.createElement('div');
+    label.className = 'elabel';
+    label.textContent = r.label;
+    row.append(keys, label);
+    r.labelEl = label;
+    erows.appendChild(row);
+  });
+
+  // ---------- timeline sampling ----------
+  function rectAt(keys, t) {
+    let v = keys[0];
+    for (let i = 1; i < keys.length; i++) {
+      const k = keys[i];
+      if (t >= k.t + k.d) { v = k.to; continue; }
+      if (t > k.t) {
+        const p = k.e((t - k.t) / k.d);
+        v = [lerp(v[0], k.to[0], p), lerp(v[1], k.to[1], p), lerp(v[2], k.to[2], p), lerp(v[3], k.to[3], p)];
+      }
+      break;
+    }
+    return v;
+  }
+  function liftAt(w, t) {
+    let a = 0;
+    for (const L of LIFT) {
+      if (L.w !== w) continue;
+      const p = (t - L.t) / 380;
+      if (p <= 0 || p >= 1) continue;
+      const tri = p < .45 ? E.out(p / .45) : 1 - E.fade((p - .45) / .55);
+      a = Math.max(a, L.peak * tri);
+    }
+    return a;
+  }
+  function activeAt(t) {
+    let a = null;
+    for (const [at, w] of ACT) if (t >= at) a = w;
+    return a;
+  }
+  function orderAt(t) {
+    const order = ['T', 'B', 'C'];
+    for (const [at, w] of ACT) {
+      if (t < at) break;
+      order.splice(order.indexOf(w), 1);
+      order.push(w);
+    }
+    return order;
+  }
+  function ringAt(t) {
+    // cur fades in over 250ms; prev (the glow that was replaced or hidden) fades out over d1.
+    let cur = null, prev = null, pulse = -1e9;
+    for (const e of RING) {
+      if (t < e.t) break;
+      if (e.kind === 'show') { if (cur) prev = { ...cur, t1: e.t, d1: 250 }; cur = { owner: e.owner, t0: e.t }; }
+      else if (e.kind === 'hide') { if (cur) prev = { ...cur, t1: e.t, d1: e.d || 150 }; cur = null; }
+    }
+    for (const e of RING) if (e.pulse != null && t >= e.pulse) pulse = e.pulse;
+    return { cur, prev, pulse };
+  }
+  // Full screen (S6): 0 = in its slot, 1 = full screen. Corners square off; the menu bar slides away and back.
+  function fullAt(t) {
+    return E.swivel(clamp((t - (s6 + 1900)) / 380)) * (1 - E.swivel(clamp((t - (s6 + 5600)) / 380)));
+  }
+  function menuHideAt(t) {
+    return E.out(clamp((t - (s6 + 1900)) / 300)) * (1 - E.out(clamp((t - (s6 + 5600)) / 300)));
+  }
+  const radiusAt = (w, t) => (w === 'T' ? RADIUS.T * (1 - fullAt(t)) : RADIUS[w]);
+  function cursorAt(t) {
+    let p = CUR0;
+    for (const k of CK) {
+      if (t >= k.t + k.d) { p = k.to; continue; }
+      if (t > k.t) {
+        const u = E.hand((t - k.t) / k.d);
+        const a = p, b = k.to;
+        if (k.arc) {
+          const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
+          let nx = dy / len, ny = -dx / len;
+          if (ny > 0) { nx = -nx; ny = -ny; }
+          const off = len * .06;
+          const c = [(a[0] + b[0]) / 2 + nx * off, (a[1] + b[1]) / 2 + ny * off];
+          const q = 1 - u;
+          p = [q * q * a[0] + 2 * q * u * c[0] + u * u * b[0], q * q * a[1] + 2 * q * u * c[1] + u * u * b[1]];
+        } else {
+          p = [lerp(a[0], b[0], u), lerp(a[1], b[1], u)];
+        }
+      }
+      break;
+    }
+    return p;
+  }
+  function pressDepth(t) {
+    let d = 0;
+    for (const [dn, up] of PRESS) {
+      if (t < dn || t > up + 120) continue;
+      let v = E.out(clamp((t - dn) / 70));
+      if (t > up) v *= 1 - E.out(clamp((t - up) / 120));
+      d = Math.max(d, v);
+    }
+    return d;
+  }
+  // Wide shot: screen pt (0,0) sits at film WIDE; the lockup (eyebrow 158 to footnote 340) and the display
+  // (bezel 402 to 913) read as one block, centered. The push holds the bezel's top-right corner and crops the
+  // frame's left edge inside Terminal (screen pt ~1719), so Claude is fully out of frame; the bottom bleeds.
+  const WIDE = [80, 410];
+  const PUSH = { O: [1848, 402], s: 1.57, t0: s2 + 100, d: 1350 }; // settles at s2+1450, 200ms before the press
+  function camAt(t) {
+    // Returns world transform: origin (film px of screen pt 0,0), scale (film px per pt), and stage opacity.
+    let s = 1, O = [960, WIDE[1] + 720 * K], op = 1;
+    if (t < S.s1) {
+      s = Math.pow(.94, 1 - outQuad(clamp(t / S.s1)));
+      op = E.fade(clamp((t - 200) / 1400));
+    } else if (t >= PUSH.t0 && t < s4 + 6500) {
+      O = PUSH.O;
+      if (t < PUSH.t0 + PUSH.d) s = Math.pow(PUSH.s, E.push(clamp((t - PUSH.t0) / PUSH.d)));
+      else if (t < s4 + 5600) s = PUSH.s;
+      else s = Math.pow(PUSH.s, 1 - E.pull(clamp((t - (s4 + 5600)) / 900)));
+    } else if (t >= s6 + 7900) {
+      const p = E.recede(clamp((t - (s6 + 7900)) / 700));
+      s = 1 - .06 * p;
+      op = 1 - p;
+    }
+    if (t >= S.end) op = 0;
+    return { ox: O[0] + s * (WIDE[0] - O[0]), oy: O[1] + s * (WIDE[1] - O[1]), sc: s * K, op };
+  }
+
+  // ---------- render(t): a pure function of time ----------
+  function render(t) {
+    t = clamp(t, 0, DUR);
+    const cam = camAt(t);
+    css(world, 'transform', `translate(${f2(cam.ox)}px,${f2(cam.oy)}px) scale(${cam.sc.toFixed(5)})`);
+    css(world, 'opacity', String(f3(cam.op)));
+    css(world, 'visibility', cam.op > 0.001 ? 'visible' : 'hidden');
+
+    // windows
+    const order = orderAt(t);
+    const active = activeAt(t);
+    const zOf = {};
+    order.forEach((w, i) => { zOf[w] = 10 + i * 10; });
+    for (const w of ['T', 'C', 'B']) {
+      const el = win[w];
+      const r = rectAt(WK[w], t);
+      css(el, 'left', f2(r[0]) + 'px');
+      css(el, 'top', f2(r[1]) + 'px');
+      css(el, 'width', f2(r[2]) + 'px');
+      css(el, 'height', f2(r[3]) + 'px');
+      css(el, 'borderRadius', f2(radiusAt(w, t)) + 'px');
+      css(el, 'zIndex', String(zOf[w]));
+      const lift = liftAt(w, t);
+      css(el, 'boxShadow', `0 0 0 2px rgba(0,0,0,.5), 0 24px 80px rgba(0,0,0,.55)` + (lift > .001 ? `, 0 14px 70px rgba(0,0,0,${f3(lift)})` : ''));
+      cls(el, 'act', active === w);
+    }
+    const mh = menuHideAt(t);
+    css(mbar, 'transform', `translateY(${f2(-26 * mh)}px)`);
+    css(mbar, 'opacity', String(f3(1 - mh)));
+    css(mbar, 'visibility', mh > .999 ? 'hidden' : 'visible');
+    const appText = active ? APP[active] : 'Finder';
+    if (appname.textContent !== appText) appname.textContent = appText;
+    css(tcur, 'opacity', Math.floor(t / 530) % 2 === 0 ? '1' : '0');
+
+    // traffic lights
+    for (const w of ['T', 'C', 'B']) {
+      const on = active === w;
+      const tl = win[w].querySelectorAll('.tl');
+      const off = w === 'T' ? '#4E4E52' : '#D1D1D6';
+      css(tl[0], 'background', on ? '#FF5F57' : off);
+      css(tl[1], 'background', on ? '#FEBC2E' : off);
+      css(tl[2], 'background', on ? '#28C840' : off);
+    }
+
+    // tabs
+    const tp = t <= TAB_DRAG.t ? 0 : t >= TAB_DRAG.t + TAB_DRAG.d ? 1 : E.hand((t - TAB_DRAG.t) / TAB_DRAG.d);
+    let docsX = 100 + TAB_DRAG.dx * tp;
+    if (t > s2 + 2500) docsX = lerp(100 + TAB_DRAG.dx, 306, E.out(clamp((t - (s2 + 2500)) / 160)));
+    const inboxX = lerp(306, 100, E.out(clamp((t - TAB_CROSS) / 220)));
+    const liftOn = clamp((t - (s2 + 1650)) / 90) * (1 - clamp((t - (s2 + 2500)) / 160));
+    css(tabs.Docs, 'transform', `translateX(${f2(docsX)}px) scale(${f3(1 + .02 * liftOn)})`);
+    css(tabs.Docs, 'zIndex', liftOn > 0 ? '3' : '2');
+    css(tabs.Docs, 'boxShadow', `0 1px 3px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,.04)` + (liftOn > 0 ? `, 0 6px 16px rgba(0,0,0,${f3(.18 * liftOn)})` : ''));
+    css(tabs.Inbox, 'transform', `translateX(${f2(inboxX)}px)`);
+    css(tabs.Repo, 'transform', 'translateX(512px)');
+
+    // glow ring
+    const R = ringAt(t);
+    const pulseP = clamp((t - R.pulse) / 500);
+    const boost = R.pulse > -1e8 && pulseP < 1 ? 1 - E.ring(pulseP) : 0;
+    const slots = [];
+    if (R.cur) slots.push({ ...R.cur, op: E.fade(clamp((t - R.cur.t0) / 250)), boost });
+    if (R.prev) slots.push({ ...R.prev, op: 1 - E.fade(clamp((t - R.prev.t1) / R.prev.d1)), boost: 0 });
+    ringEls.forEach((el, i) => {
+      const r = slots[i];
+      if (!r || r.op <= 0.001) { css(el, 'opacity', '0'); return; }
+      const rect = rectAt(WK[r.owner], t); // the owner's live outline, every frame
+      const rad = radiusAt(r.owner, t) + 6;
+      css(el, 'left', f2(rect[0] - 6) + 'px');
+      css(el, 'top', f2(rect[1] - 6) + 'px');
+      css(el, 'width', f2(rect[2] + 12) + 'px');
+      css(el, 'height', f2(rect[3] + 12) + 'px');
+      css(el, 'borderRadius', f2(rad) + 'px');
+      css(el, 'zIndex', String(zOf[r.owner] - 1));
+      css(el, 'opacity', String(f3(r.op)));
+      const b = r.boost;
+      const blur1 = 40 + 24 * b, blur2 = 116 + 150 * b;
+      const a1 = .55 + .3 * b, a2 = .20 + .16 * b;
+      css(el, 'boxShadow', `0 0 ${f2(blur1)}px ${f2(6 + 6 * b)}px rgba(0,145,255,${f3(a1)}), 0 0 ${f2(blur2)}px ${f2(20 + 24 * b)}px rgba(0,145,255,${f3(a2)})`);
+      css(el, 'borderColor', b > 0.01 ? `rgb(${Math.round(0 + 90 * b)},${Math.round(145 + 55 * b)},255)` : '#0091FF');
+    });
+
+    // cursor (film space, constant size)
+    const cp = cursorAt(t);
+    const cx = cam.ox + cp[0] * cam.sc, cy = cam.oy + cp[1] * cam.sc;
+    const depth = pressDepth(t);
+    const isResize = RESIZE.some(([a, b]) => t >= a && t < b);
+    css(cursor, 'transform', `translate(${f2(cx)}px,${f2(cy)}px) scale(${f3(1 - .14 * depth)})`);
+    css(cursor, 'opacity', String(f3(cam.op)));
+    css(cursor, 'visibility', cam.op > 0.001 ? 'visible' : 'hidden');
+    css(arrow, 'display', isResize ? 'none' : 'block');
+    css(resize, 'display', isResize ? 'block' : 'none');
+
+    // click rings (white = the hand)
+    let ci = 0;
+    for (const [dn] of PRESS) {
+      const age = t - dn;
+      if (age < 0 || age > 450 || ci >= clicks.length) continue;
+      const p = E.ring(age / 450);
+      const dia = lerp(16, 58, p);
+      const el = clicks[ci++];
+      const pc = cursorAt(dn);
+      const x = cam.ox + pc[0] * cam.sc, y = cam.oy + pc[1] * cam.sc;
+      css(el, 'transform', `translate(${f2(x)}px,${f2(y)}px) scale(${f3(dia / 100)})`);
+      css(el, 'borderWidth', f2(2.6 * 100 / dia) + 'px');
+      css(el, 'opacity', String(f3(.8 * (1 - p) * cam.op)));
+    }
+    for (; ci < clicks.length; ci++) css(clicks[ci], 'opacity', '0');
+
+    // captions
+    for (const c of CAPS) {
+      const lt = t - c.at;
+      const vis = lt >= 0 && lt < c.exit + 320;
+      css(c.el, 'display', vis ? 'block' : 'none');
+      if (!vis) continue;
+      const xo = E.exit(clamp((lt - c.exit) / 300));
+      c.ebW.forEach((w, i) => word(w, lt - (c.ebT || 0) - i * 50, 16, xo, c.brand ? 700 : 0));
+      c.hdW.forEach((w, i) => word(w, lt - c.hdT - i * 60, 30, xo, 0));
+      c.ft.forEach((f, i) => {
+        const el = c.ftEl[i];
+        const u = lt - f.t;
+        const p = E.out(clamp(u / 500));
+        let o = u <= 0 ? 0 : p, b = 8 * (1 - p), y = 10 * (1 - p);
+        let x = xo;
+        if (f.out != null) x = Math.max(x, E.exit(clamp((lt - f.out) / 300)));
+        o *= 1 - x; b += 4 * x;
+        css(el, 'opacity', String(f3(o)));
+        css(el, 'transform', `translateY(${f2(y)}px)`);
+        css(el, 'filter', b > .02 && o > 0 ? `blur(${f2(b)}px)` : 'none');
+        css(el, 'visibility', o > 0.001 ? 'visible' : 'hidden');
+      });
+    }
+
+    renderEnd(t);
+  }
+
+  function word(el, u, rise, xo, single) {
+    let o, y, b;
+    if (u <= 0) { o = 0; y = rise; b = 6; }
+    else if (single) {
+      const p = E.out(clamp(u / single));
+      o = p; y = rise * (1 - p); b = 8 * (1 - p);
+    } else {
+      y = rise * (1 - E.apple(clamp(u / 700)));
+      o = E.apple(clamp(u / 900));
+      b = 6 * (1 - E.apple(clamp(u / 600)));
+    }
+    o *= 1 - xo;
+    b += 4 * xo;
+    css(el, 'opacity', String(f3(o)));
+    css(el, 'transform', `translateY(${f2(y)}px)`);
+    css(el, 'filter', b > .02 && o > 0 ? `blur(${f2(b)}px)` : 'none');
+  }
+
+  function renderEnd(t) {
+    const te = t - S.end;
+    const vis = te >= 0;
+    css(endEl, 'display', vis ? 'block' : 'none');
+    if (!vis) return;
+    const fade = 1 - E.exit(clamp((te - 6000) / 600));
+    css(endEl, 'opacity', String(f3(fade)));
+
+    const wp = E.out(clamp((te - 300) / 700));
+    css(wm, 'opacity', String(f3(wp)));
+    css(wm, 'filter', wp < .999 ? `blur(${f2(12 * (1 - wp))}px)` : 'none');
+    css(wm, 'transform', `scale(${f3(.96 + .04 * wp)})`);
+
+    ROWS.forEach((r, i) => {
+      const rt = te - ROW_T[i];
+      let n = 0;
+      r.kEls.forEach(k => {
+        const u = rt - 40 * n++;
+        const p = E.out(clamp(u / 420));
+        css(k.el, 'opacity', String(f3(u <= 0 ? 0 : p)));
+        css(k.el, 'filter', p < .999 ? `blur(${f2(8 * (1 - p))}px)` : 'none');
+        if (k.sep) return;
+        const pt0 = rt - 420 - 40 * (r.kEls.length - 1); // every key of the row has landed
+        if (k.strip) {
+          // The menu-bar item highlights on click and stays lit while its menu is open.
+          css(k.el, 'transform', `scale(${f3(.94 + .06 * p)})`);
+          css(k.hl, 'opacity', String(f3(pt0 <= 0 ? 0 : E.out(clamp(pt0 / 80)))));
+          return;
+        }
+        // A chord: the modifiers go down 40ms apart, then the letter; all release together and glow as one.
+        let press = 0, halo = 0;
+        r.chords.forEach((ch, ci) => {
+          const pos = ch.indexOf(k.j);
+          if (pos < 0) return;
+          const pt = pt0 - CHORD.gap * ci;
+          if (pt < 0) return;
+          const dn = pos === ch.length - 1 ? CHORD.letter : CHORD.mod * pos;
+          let v = 0;
+          if (pt >= dn) {
+            if (pt < dn + 60) v = E.key((pt - dn) / 60);
+            else if (pt < CHORD.hold) v = 1;
+            else v = 1 - E.key(clamp((pt - CHORD.hold) / 120));
+          }
+          const hu = pt - CHORD.letter;
+          const h = hu < 0 ? 0 : hu < 60 ? hu / 60 : 1 - E.out(clamp((hu - 60) / 900));
+          press = Math.max(press, v);
+          halo = Math.max(halo, h);
+        });
+        css(k.el, 'transform', `translateY(${f2(2 * press)}px) scale(${f3(.94 + .06 * p)})`);
+        css(k.key, 'boxShadow', `inset 0 1px 1px 1px rgba(255,255,255,.10), 0 2px .5px 3px rgba(0,0,0,${f3(.4 * (1 - press))})`);
+        css(k.halo, 'opacity', String(f3(halo)));
+      });
+      const lu = rt - 120;
+      const lp = E.out(clamp(lu / 600));
+      css(r.labelEl, 'opacity', String(f3(lu <= 0 ? 0 : lp)));
+      css(r.labelEl, 'transform', `translateY(${f2(12 * (1 - lp))}px)`);
+    });
+
+    // Re-tile in context: the menu-bar icon opens a compact menu.
+    const r4 = te - ROW_T[3];
+    const mu = r4 - 420 - 60;
+    const mp = E.out(clamp(mu / 300));
+    css(menu, 'opacity', String(f3(mu <= 0 ? 0 : mp)));
+    css(menu, 'transform', `translateY(${f2(-8 * (1 - mp))}px) scale(${f3(.97 + .03 * mp)})`);
+    css(menu, 'filter', mp < .999 ? `blur(${f2(6 * (1 - mp))}px)` : 'none');
+    const cu = r4 - 1050;
+    css(mcap, 'opacity', String(f3(cu <= 0 ? 0 : E.out(clamp(cu / 160)))));
+  }
+
+  // ---------- playback ----------
+  let t = 0, playing = false, last = null;
+  const playBtn = $('play'), timeEl = $('time'), nowEl = $('now'), chEl = $('chapters');
+  const fmt = ms => { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  const chBtns = CHAPTERS.map((c, i) => {
+    const end = i + 1 < CHAPTERS.length ? CHAPTERS[i + 1].t : DUR;
+    c.end = end;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ch';
+    b.style.setProperty('--d', String(end - c.t));
+    b.setAttribute('aria-label', (reduce ? 'Show ' : 'Play from ') + c.name);
+    b.innerHTML = '<span class="bar"><span class="fill"></span></span><span class="lbl"></span>';
+    b.querySelector('.lbl').textContent = c.label;
+    b.addEventListener('click', e => {
+      if (reduce) { pause(); seek(c.hold); return; }
+      // A pointer click on the bar seeks to that point, like any video bar; the label and the keyboard
+      // (e.detail === 0) jump to the chapter's start.
+      let ms = c.t;
+      if (e.detail !== 0 && !(e.target.closest && e.target.closest('.lbl'))) {
+        const r = b.getBoundingClientRect();
+        if (r.width > 0) ms = c.t + clamp((e.clientX - r.left) / r.width) * (c.end - c.t);
+      }
+      seek(Math.min(ms, c.end - 1)); play();
+    });
+    chEl.appendChild(b);
+    return b;
+  });
+  // Per chapter: eyebrow, headline and footnote(s), mirrored under the film on phones.
+  const NOW = CHAPTERS.map(c => {
+    const cap = CAPS.find(k => k.at === c.t);
+    if (cap) return { isNew: !!cap.isNew, eb: cap.brand ? 'Swivel' : cap.eb, hd: cap.hd, ft: cap.ft.map(f => f.text).join(' ') };
+    return { isNew: false, eb: 'Shortcuts', hd: 'Swivel, from the keyboard.',
+      ft: 'Turn it off or on, leave one window alone, bring a side to the middle, or Re-tile.' };
+  });
+  const nowEb = document.createElement('span'), nowHd = document.createElement('span'), nowFt = document.createElement('span');
+  nowEb.className = 'n-eb'; nowHd.className = 'n-hd'; nowFt.className = 'n-ft';
+  nowEl.append(nowEb, nowHd, nowFt);
+  let lastUi = '';
+  function ui() {
+    const idx = CHAPTERS.findIndex(c => t >= c.t && t < c.end);
+    const ci = idx < 0 ? CHAPTERS.length - 1 : idx;
+    const key = ci + '|' + Math.floor(t / 100) + '|' + playing;
+    if (key === lastUi) return;
+    lastUi = key;
+    chBtns.forEach((b, i) => {
+      const c = CHAPTERS[i];
+      const f = t >= c.end ? 1 : t <= c.t ? 0 : (t - c.t) / (c.end - c.t);
+      b.querySelector('.fill').style.width = (f * 100).toFixed(2) + '%';
+      if (i === ci) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+    });
+    timeEl.textContent = fmt(t) + ' / ' + fmt(DUR);
+    if (nowEl.dataset.ch !== String(ci)) {
+      // Phones: the film's small captions are unreadable at ~0.19x, so the page repeats the scene's lockup here.
+      nowEl.dataset.ch = String(ci);
+      const n = NOW[ci];
+      nowEb.innerHTML = '';
+      if (n.isNew) { const b = document.createElement('b'); b.textContent = 'New'; nowEb.appendChild(b); }
+      nowEb.appendChild(document.createTextNode((n.isNew ? ' ' : '') + n.eb));
+      nowHd.textContent = n.hd;
+      nowFt.textContent = n.ft;
+    }
+    playBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    if (!capture) frame.setAttribute('aria-label', (playing ? 'Pause' : 'Play') + ' the Swivel film');
+    playBtn.querySelector('.i-pause').toggleAttribute('hidden', !playing);
+    playBtn.querySelector('.i-play').toggleAttribute('hidden', playing);
+  }
+  function seek(ms) { t = clamp(Number(ms) || 0, 0, DUR); render(t); ui(); }
+  function play() { playing = true; last = null; ui(); }
+  function pause() { playing = false; last = null; ui(); }
+  function tick(now) {
+    if (playing) {
+      if (last !== null) {
+        t += Math.min(now - last, 100);
+        if (t >= DUR) t -= DUR;
+      }
+      last = now;
+      render(t);
+      ui();
+    }
+    requestAnimationFrame(tick);
+  }
+  playBtn.addEventListener('click', () => (playing ? pause() : play()));
+  chEl.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    seek(t + (e.key === 'ArrowRight' ? 5000 : -5000));
+  });
+  frame.addEventListener('click', () => { if (!capture) (playing ? pause() : play()); });
+  frame.addEventListener('keydown', e => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); playing ? pause() : play(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      seek(t + (e.key === 'ArrowRight' ? 5000 : -5000));
+    }
+  });
+
+  function fit() {
+    const w = capture ? 1920 : frame.clientWidth;
+    css(film, 'transform', `scale(${(w / 1920).toFixed(5)})`);
+  }
+  fit();
+  if (!capture && 'ResizeObserver' in window) new ResizeObserver(fit).observe(frame);
+  window.addEventListener('resize', fit);
+
+  window.__demo = {
+    duration: DUR,
+    seek,
+    pause,
+    play,
+    get playing() { return playing; },
+    chapters: CHAPTERS.map(c => ({ id: c.id, name: c.name, start: c.t, end: c.end })),
+  };
+
+  if (capture) seek(0);
+  else if (reduce) seek(CHAPTERS[0].hold);
+  else { seek(2900); play(); }
+  requestAnimationFrame(tick);
+
+  // Inter is only the non-Apple fallback (SF Pro wins on Macs): load it without blocking first paint.
+  const fontLink = document.createElement('link');
+  fontLink.rel = 'stylesheet';
+  fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
+  document.head.appendChild(fontLink);
+})();
+</script>

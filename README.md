@@ -6,6 +6,11 @@ A menu bar app for ultrawide monitors. The window you focus glides to the middle
 front of you, and every other window is tiled neatly on either side. No dragging windows around, no turning
 your head to read the edges.
 
+[![Swivel in 52 seconds: what you do, and what Swivel does back](docs/swivel-film.gif)](docs/swivel-film.mp4)
+
+52 seconds, no sound: [watch it in full quality](docs/swivel-film.mp4). The film is drawn in HTML and rendered
+frame by frame ([docs/film](docs/film)).
+
 ## How it works
 
 - Focus a window any way you like (click it, ⌘-Tab, open a new one) and it moves to the center slot.
@@ -21,6 +26,8 @@ your head to read the edges.
   center window sets the center width (each screen keeps its own). Move a window and it goes back to its
   place in the row as soon as you let go.
 - Each Space is tiled on its own. Swivel tiles the widest display.
+- Mission Control is left alone: while it's open (or App Exposé, or Show Desktop) Swivel holds still, so you
+  can drag windows between desktops. It catches up once Mission Control closes.
 
 **Smooth transitions.** macOS only lets one app move another app's windows by asking that app to do it,
 and most apps (Electron and Chrome especially) redraw slowly while being resized. So Swivel snapshots the
@@ -30,7 +37,10 @@ snapshot and fades into it while the windows land, so the overlay ends up identi
 handing back to the real windows is invisible. This needs Screen Recording permission. Snapshots only
 exist in memory for the length of one transition. Without the permission, windows snap into place.
 
-A glow marks the focused window, and side windows can be dimmed (menu → **Dim Side Windows**).
+A glow marks the focused window, and side windows can be dimmed (menu → **Dim Side Windows**). The glow's
+window only covers the focused window and a margin around it: an invisible window over the whole screen on
+every Space makes Mission Control shrink the other windows to nothing. Dimming has to cover the screen, so
+with it on, Swivel relies on hiding the dimming as Mission Control opens.
 
 ## Install
 
@@ -67,7 +77,11 @@ Toggling Swivel off and on isn't enough then: remove it from each list and add i
 - `./build.sh --test` runs the layout tests first.
 - `Swivel.app/Contents/MacOS/Swivel --dry-run` prints where each window would go, without moving anything.
 - `Swivel.app/Contents/MacOS/Swivel --render-test <folder>` renders a sample transition to PNGs.
+- `open -n -g /Applications/Swivel.app --args --snapshot <file.png>` saves a picture of the screen with
+  Swivel's own Screen Recording permission, for a terminal that has none.
 - Swivel logs timings and problems (never window titles or contents) to `~/Library/Logs/Swivel.log`.
+  `defaults write local.swivel.Swivel trace -bool YES` (then relaunch) also logs everything it reacts to.
+- `docs/film` renders the demo film; see its README.
 
 | File | What's in it |
 |---|---|

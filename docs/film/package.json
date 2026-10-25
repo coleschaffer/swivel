@@ -1,0 +1,13 @@
+{
+  "name": "swivel-film",
+  "private": true,
+  "description": "Renders docs/swivel-film.mp4 from swivel-film.html, frame by frame, in headless Chrome.",
+  "type": "module",
+  "scripts": {
+    "render": "node render.mjs swivel-film.html ../swivel-film.mp4 30",
+    "stills": "node shoot.mjs frames swivel-film.html stills 0,6000,12000,19000,25500,32000,39000,47000"
+  },
+  "dependencies": {
+    "puppeteer-core": "^23.11.1"
+  }
+}
