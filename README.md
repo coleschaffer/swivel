@@ -23,7 +23,7 @@ frame by frame ([docs/film](docs/film)).
 - Zoom a window or make it full screen and Swivel leaves it be, and nothing else moves. Shrink it back and
   it returns to its place in the row.
 - Resize a window and it keeps the size you gave it: a side window stays as you left it, and resizing the
-  center window sets the center width (each screen keeps its own). Move a window and it goes back to its
+  center window sets the center width (each desktop keeps its own). Move a window and it goes back to its
   place in the row as soon as you let go.
 - Each Space is tiled on its own. Swivel tiles the widest display.
 - Mission Control is left alone: while it's open (or App Exposé, or Show Desktop) Swivel holds still, so you

@@ -17,22 +17,27 @@ final class Preferences {
         set { defaults.set(newValue.rawValue, forKey: "style") }
     }
 
-    /// Share of the screen width the center window gets. Each screen size keeps its own, since a laptop screen
-    /// wants a wider center than an ultrawide; a screen that hasn't had one set uses the shared one.
-    func centerFraction(on screen: CGSize?) -> CGFloat {
-        let saved = screen.flatMap { defaults.dictionary(forKey: "centerFractions")?[Self.key($0)] as? Double }
-        return CGFloat(saved ?? number("centerFraction", default: 0.35))
+    /// Share of the screen width the center window gets. Each desktop (Space) keeps its own, so widening the
+    /// center on one leaves the others as they were. A desktop that hasn't had one set uses its screen's, since
+    /// a laptop screen wants a wider center than an ultrawide; a screen that hasn't had one set uses the shared one.
+    func centerFraction(on screen: CGSize?, space: String?) -> CGFloat {
+        let saved = defaults.dictionary(forKey: "centerFractions") ?? [:]
+        let keys = screen.map { [Self.key($0, space), Self.key($0, nil)] } ?? []
+        let value = keys.lazy.compactMap { saved[$0] as? Double }.first
+        return CGFloat(value ?? number("centerFraction", default: 0.35))
     }
 
-    func setCenterFraction(_ value: CGFloat, on screen: CGSize?) {
+    func setCenterFraction(_ value: CGFloat, on screen: CGSize?, space: String?) {
         let clamped = Double(min(0.8, max(0.2, value)))
         guard let screen else { return defaults.set(clamped, forKey: "centerFraction") }
         var saved = defaults.dictionary(forKey: "centerFractions") ?? [:]
-        saved[Self.key(screen)] = clamped
+        saved[Self.key(screen, space)] = clamped
         defaults.set(saved, forKey: "centerFractions")
     }
 
-    private static func key(_ screen: CGSize) -> String { "\(Int(screen.width))x\(Int(screen.height))" }
+    private static func key(_ screen: CGSize, _ space: String?) -> String {
+        "\(Int(screen.width))x\(Int(screen.height))" + (space.map { " \($0)" } ?? "")
+    }
 
     var gap: CGFloat {
         get { CGFloat(number("gapSize", default: 12)) }
@@ -78,7 +83,7 @@ final class Preferences {
         set { defaults.set(newValue, forKey: "loginItemConfigured") }
     }
 
-    func layout(on screen: CGSize?) -> LayoutSettings {
-        LayoutSettings(centerFraction: centerFraction(on: screen), gap: gap)
+    func layout(on screen: CGSize?, space: String?) -> LayoutSettings {
+        LayoutSettings(centerFraction: centerFraction(on: screen, space: space), gap: gap)
     }
 }

@@ -181,17 +181,17 @@ final class WindowManager: NSObject {
 
     func relayout() { scheduleUpdate() }
 
-    /// The center's share of the width on the screen being tiled. Each screen size keeps its own.
-    var centerFraction: CGFloat { prefs.centerFraction(on: Self.screen?.frame.size) }
+    /// The center's share of the width on the screen being tiled. Each desktop keeps its own.
+    var centerFraction: CGFloat { prefs.centerFraction(on: Self.screen?.frame.size, space: Self.screen?.currentSpace) }
 
     func setCenterWidth(_ fraction: CGFloat) {
-        prefs.setCenterFraction(fraction, on: Self.screen?.frame.size)
+        prefs.setCenterFraction(fraction, on: Self.screen?.frame.size, space: Self.screen?.currentSpace)
         relayout()
     }
 
     func adjustCenterWidth(by delta: CGFloat) { setCenterWidth(centerFraction + delta) }
 
-    private var layoutSettings: LayoutSettings { prefs.layout(on: Self.screen?.frame.size) }
+    private var layoutSettings: LayoutSettings { prefs.layout(on: Self.screen?.frame.size, space: Self.screen?.currentSpace) }
 
     func toggleFloating(_ id: WindowID) {
         if floating.remove(id) == nil { floating.insert(id) }
@@ -333,7 +333,7 @@ final class WindowManager: NSObject {
                 pinned.insert(id)
             } else if !centerChanged {
                 let fraction = (window.frame.width / snapshot.area.width * 100).rounded() / 100
-                prefs.setCenterFraction(fraction, on: Self.screen?.frame.size)
+                prefs.setCenterFraction(fraction, on: Self.screen?.frame.size, space: Self.screen?.currentSpace)
             }
         }
     }

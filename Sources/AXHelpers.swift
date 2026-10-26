@@ -6,6 +6,13 @@ import ApplicationServices
 @_silgen_name("_AXUIElementGetWindow")
 private func _AXUIElementGetWindow(_ element: AXUIElement, _ id: UnsafeMutablePointer<CGWindowID>) -> AXError
 
+/// Private too, and just as widely used (yabai, AltTab): the window server's list of each display's Spaces.
+@_silgen_name("CGSMainConnectionID")
+private func CGSMainConnectionID() -> Int32
+
+@_silgen_name("CGSCopyManagedDisplaySpaces")
+private func CGSCopyManagedDisplaySpaces(_ connection: Int32) -> CFArray?
+
 extension AXUIElement {
     func attribute(_ name: String) -> CFTypeRef? {
         var value: CFTypeRef?
@@ -83,6 +90,18 @@ extension NSScreen {
 
     var displayID: CGDirectDisplayID {
         (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
+    }
+
+    /// The Space (desktop) this screen is showing, as an id that lasts across restarts. When displays share
+    /// Spaces ("Displays have separate Spaces" is off), the window server lists them all under "Main".
+    var currentSpace: String? {
+        guard let displays = CGSCopyManagedDisplaySpaces(CGSMainConnectionID()) as? [[String: Any]] else { return nil }
+        let uuid = CGDisplayCreateUUIDFromDisplayID(displayID).map { CFUUIDCreateString(nil, $0.takeRetainedValue()) as String }
+        let display = displays.first { $0["Display Identifier"] as? String == uuid }
+            ?? displays.first { $0["Display Identifier"] as? String == "Main" }
+        guard let space = display?["Current Space"] as? [String: Any] else { return nil }
+        if let id = space["uuid"] as? String, !id.isEmpty { return id }
+        return (space["ManagedSpaceID"] as? Int).map { "space \($0)" }
     }
 
     private static func flipped(_ rect: CGRect) -> CGRect {
